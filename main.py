@@ -1,27 +1,18 @@
 import typer
 from rich import print
-from rich.prompt import Prompt
+from utils.port_scanner import pScanner
+
 
 app = typer.Typer()
 
-@app.command("hello-world")
-def test():
-    print("[bold red]Hello, World![/bold red]")
-
-@app.command()
-def port_scanner(ip: str = "127.0.0.1", start: int = 1, end: int = 1024, threads: int = 100):
-    """Testing docstrings for --help"""
-    pass
+@app.command("port-scanner")
+def threaded_port_scanner(ip: str = typer.Argument(default="127.0.0.1", help="Target IP address"), 
+                 start: int = typer.Argument(default=1, help="", min=1), 
+                  end: int = typer.Argument(default=1024, help="", max=65535),
+                   threads: int = typer.Option(default=100, help="")):
+    """Scan the given ports of the given IP."""
     
-@app.command()
-def prompt_port_scanner():
-    ip = Prompt.ask("(default = localhost): ", default='127.0.0.1')
-    portsS = Prompt.ask("(default = 1): ", default=1)
-    portsE = Prompt.ask("(default = 1024): ", default=1024)
-    threads_number = int(Prompt.ask("(default = 100)", default=100))
-
-    if threads_number > 500:
-        threads_number = Prompt.Confirm("Are you sure?")
+    pScanner(ip, start, end, threads)
 
 
 
