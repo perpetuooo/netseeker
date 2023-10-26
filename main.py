@@ -1,18 +1,39 @@
+import re
 import typer
 from rich import print
-from utils.port_scanner import pScanner
+from typing_extensions import Annotated
+
+from utils.scanner import port_scanner
 
 
-app = typer.Typer()
+app = typer.Typer(rich_markup_mode="rich")
+
+@app.command("place-holder")
+def hello_world():
+    """Command placeholder."""
+    print("Hello, World!")
 
 @app.command("port-scanner")
-def threaded_port_scanner(ip: str = typer.Argument(default="127.0.0.1", help="Target IP address"), 
-                 start: int = typer.Argument(default=1, help="", min=1), 
-                  end: int = typer.Argument(default=1024, help="", max=65535),
-                   threads: int = typer.Option(default=100, help="")):
+def threaded_port_scanner(ip: Annotated[str, typer.Argument(help="Target IP")] = '127.0.0.1', 
+                           threads: Annotated[int, typer.Option(help="Threads number for the scanner.")] = 20,
+                            ports: Annotated[str, typer.Option(help="Desired port range to scan.")] = '1-1024'):
     """Scan the given ports of the given IP."""
     
-    pScanner(ip, start, end, threads)
+    ip_pattern = r'(\d+)[-,](\d+)'
+    match = re.search(ip_pattern, ports)
+
+    if match:
+        start = int(match.group(1))
+        end = int(match.group(2))
+
+        port_scanner(ip, start, end, threads)
+
+    else:
+        raise ValueError("Invalid port range, use 'start-end' or 'start,end'.")
+
+
+
+
 
 
 
