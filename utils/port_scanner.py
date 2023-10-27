@@ -3,11 +3,10 @@ from rich import print
 from rich.table import Table
 from concurrent.futures import ThreadPoolExecutor
 
-def port_scanner(target, start, end, threads):
-    print(f"[bold yellow][%] Starting scanner...[/bold yellow]")
-    port_range = range(start, end + 1)
-    nm = nmap.PortScanner()
+def NmapScanner(target, start, end, threads):
+    print(f"[bold yellow][%] Scanning ports {start} to {end} on {target}...[/bold yellow]")
 
+    nm = nmap.PortScanner()
     table = Table("Port", "State", "Service")
 
     def scanner(port):
@@ -26,10 +25,10 @@ def port_scanner(target, start, end, threads):
 
 
     with ThreadPoolExecutor(max_workers=threads) as executor:
-        executor.map(scanner, port_range)
+        executor.map(scanner, range(start, end + 1))
 
     if table.row_count == 0:
-        print(f"[bold red][!] No open ports on {target}.[/bold red]")
+        print(f"\n[bold red][!] No open ports on {target}.[/bold red]")
 
     else:
         print(table)
