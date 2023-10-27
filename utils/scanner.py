@@ -1,58 +1,38 @@
 import nmap
-import threading
 from rich import print
-from queue import Queue
+from rich.table import Table
+from concurrent.futures import ThreadPoolExecutor
 
 def port_scanner(target, start, end, threads):
-
-    queue = Queue()
-    thread_list = []
-    open_ports = []
-    port_range = range(start, end)
+    print(f"[bold yellow][%] Starting scanner...[/bold yellow]")
+    port_range = range(start, end + 1)
     nm = nmap.PortScanner()
 
+    table = Table("Port", "State", "Service")
 
     def scanner(port):
         try:
             result = nm.scan(target, str(port))
+
             port_status = (result['scan'][target]['tcp'][port]['state'])
+            port_state = (result['scan'][target]['tcp'][port]['state'])
+            port_service = (result['scan'][target]['tcp'][port]['name'])
 
             if port_status == "open":
-                open_ports.append(port)
+                table.add_row(str(port), port_state, port_service)
 
-        except:
-            pass
-
-
-    def start_threads():
-        for i in range(threads):
-            thread = threading.Thread(target=worker)
-            thread_list.append(thread)
-
-        for thread in thread_list:
-            thread.start()
-
-        for thread in thread_list:
-            thread.join()
+        except Exception as e:
+            print(f"[bold red][!] ERROR: {e}[/bold red]")
 
 
-    def worker():
-        while not queue.empty():
-            port = queue.get()
-            scanner(port)
+    with ThreadPoolExecutor(max_workers=threads) as executor:
+        executor.map(scanner, port_range)
 
-    print(f"[bold yellow] Scanning {target}...[bold yellow]")
-
-    for port in port_range:
-        queue.put(port)
-
-    start_threads()
-
-    if not open_ports:
-        print(f"[bold red]No open ports.[/bold red]")
+    if table.row_count == 0:
+        print(f"[bold red][!] No open ports on {target}.[/bold red]")
 
     else:
-        print(f"[bold green]{open_ports}[/bold green]")
+        print(table)
 
 
 
