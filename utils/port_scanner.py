@@ -1,18 +1,15 @@
 import sys
+import time
 import nmap
 from rich import print
 from rich.table import Table
 from concurrent.futures import ThreadPoolExecutor
 
 def NmapPortScanner(target, start, end, threads):
-    print(f"[bold yellow][-] Scanning ports {start} to {end} on {target}...[/bold yellow]\n")
-
-    nm = nmap.PortScanner()
-    table = Table("Port", "State", "Service")
 
     def scanner(port):
         try:
-            result = nm.scan(target, str(port))
+            result = nm.scan(str(target), str(port))
 
             port_status = (result['scan'][target]['tcp'][port]['state'])
             port_state = (result['scan'][target]['tcp'][port]['state'])
@@ -29,14 +26,25 @@ def NmapPortScanner(target, start, end, threads):
             sys.exit()
 
 
+    print(f"[bold yellow][-] Scanning ports {start} to {end} on {target}...[/bold yellow]\n")
+
+    nm = nmap.PortScanner()
+
+    table = Table("Port", "State", "Service")
+    port_range = range(start, end + 1)
+    s = time.process_time()
+
     with ThreadPoolExecutor(max_workers=threads) as executor:
-        executor.map(scanner, range(start, end + 1))
+        executor.map(scanner, port_range)
+
 
     if table.row_count == 0:
         print(f"[bold red][!] No open ports on {target}.[/bold red]")
 
     else:
+        e = time.time()
         print(table)
+        print(f"\n[+] Time elapsed: {(e - s)}\n")
 
 
 
