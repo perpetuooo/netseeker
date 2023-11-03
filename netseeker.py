@@ -11,7 +11,7 @@ app = typer.Typer(rich_markup_mode="rich")
 
 @app.command("port-scanner")
 def threaded_port_scanner(ip: Annotated[str, typer.Argument(help="Target IP/domain.")] = '127.0.0.1',
-                           args: Annotated[str, typer.Argument(help="Arguments for the scanner")] = '',
+                           args: Annotated[str, typer.Argument(help="Arguments for the scanner")] = "",
                             ports: Annotated[str, typer.Option(help="Desired port range to scan.")] = '1-1024', 
                              threads: Annotated[int, typer.Option(help="Threads amount for the scanner process.")] = 20):
     """Scan the given ports of the target address."""
@@ -29,9 +29,10 @@ def threaded_port_scanner(ip: Annotated[str, typer.Argument(help="Target IP/doma
 
 @app.command("wifi-scanner")
 def host_discovery(ip: Annotated[str, typer.Argument(help="Target IP range (ex: 192.168.1.1/24).", show_default=False)] = '192.168.1.1/24',
-                    verbose: Annotated[bool, typer.Option(help="Verbose flag.")] = False):
+                    timing: Annotated[int, typer.Option(help="")] = 4,
+                     args: Annotated[str, typer.Option(help="Other arguments for the scanner.")] = ""):
     """Discover all devices on the local network."""
-    network_scanner.ScapyNetScanner(ip, verbose)
+    network_scanner.NmapNetScanner(ip, timing, args)
 
 
 
