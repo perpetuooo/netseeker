@@ -1,51 +1,61 @@
 import sys
-import time
 import socket
-import scapy.all as scapy
+from nmap import PortScanner
 from rich import print
 from rich.table import Table
+from datetime import datetime
 
-def ScapyNetScanner(target, vFlag):
+#from services import get_mac
 
-    def scanner(ip):
-        try:
-            arp_request = scapy.ARP(pdst=ip)
-            ether_frame = scapy.Ether(dst="ff:ff:ff:ff:ff:ff")
-            request = ether_frame/arp_request
+def ScapyNetScanner(target, verb):
 
-            response_list = scapy.srp(request, timeout=3, retry=1, verbose=vFlag)[0]
+    nm = PortScanner()
+    target = '192.168.5.132/24'
+    host_list = []
 
-            for _, received in response_list:
-                try:
-                    hostname = socket.gethostbyaddr(received.psrc)[0]
+    try:
+        result = nm.scan(target, arguments='-sn -T4 --max-retries 2', timeout=3000)
+        #print(result['scan'])
+        #print('\n')
 
-                except:
-                    hostname = "???"
+        for hosts in result['scan'].values():
+            try:
+                #print(hosts)
+                host_list.append(hosts)
 
-                table.add_row(received.psrc, received.hwsrc, str(hostname))
+                ipv4 = (hosts['addresses']['ipv4'])
+                print(ipv4)
+                
+                if len(hosts['addresses']) == 1:
+                    pass
+                
+                else:
+                    macs = (hosts['addresses']['mac'])
+                    print(macs)
 
-        except Exception as e:
-            print(f"[bold red][!] ERROR: {str(e)}[/bold red]")
-            sys.exit(1)
-        
-        except KeyboardInterrupt:
-            sys.exit()
+                if len(hosts['vendor']) == 1:
+                    hostname = (hosts['vendor'][macs])
+                    print(hostname)
+                
+                else:
+                    try:
+                        hostname = socket.gethostbyaddr(ipv4)[0]
+                        print(hostname)
+                    
+                    except socket.error:
+                        hostname = "host not found"
+                        print(hostname)
 
 
-    print(f"[bold yellow][-] Scanning devices on {target}...[/bold yellow]\n")
+                print('\n')
 
-    table = Table("IP", "MAC", "HOSTNAME")
-    s = time.process_time()
-    scanner(target)
+            except Exception as e:
+                print(f"{str(e)}")
 
+    except Exception as e:
+        print(f"{str(e)}")
 
-    if table.row_count == 0:
-        print("[bold red][!] Scan failed, no devices detected.[/bold red]")
-    
-    else:
-        e = time.time()
-        print(table)
-        print(f"\n[+] Time elapsed: {(e - s)}")
+    print(f"Count: {len(host_list)}")
 
 
 
