@@ -5,7 +5,7 @@ from rich import print
 from rich.table import Table
 from datetime import datetime
 
-#from services import get_mac
+from resources.services import DeviceInfo
 
 
 def NmapNetScanner(target, timing, args):
@@ -23,7 +23,7 @@ def NmapNetScanner(target, timing, args):
                 #getting the host mac address
                 if len(host['addresses']) == 1:
                     try:
-                        #mac_address = get_mac(ipv4_address)
+                        mac_address = info.get_mac(ipv4_address)
                         pass
                     
                     except:
@@ -52,6 +52,7 @@ def NmapNetScanner(target, timing, args):
 
 
     nm = PortScanner()
+    info = DeviceInfo()
 
     print(f"[bold yellow][-][/bold yellow] Scanning devices on [bold yellow]{target}[/bold yellow] network...\n")
     host_list = []

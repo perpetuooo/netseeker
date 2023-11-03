@@ -1,5 +1,5 @@
 import sys
-import nmap
+from nmap import PortScanner
 from rich import print
 from rich.table import Table
 from datetime import datetime
@@ -26,10 +26,9 @@ def NmapPortScanner(target, start, end, threads, args):
             sys.exit()
 
 
-    print(f"[bold yellow][-] Scanning ports {start} to {end} on {target}...[/bold yellow]\n")
+    nm = PortScanner()
 
-    nm = nmap.PortScanner()
-
+    print(f"[bold yellow][-][/bold yellow] Scanning ports {start} to {end} on [bold yellow]{target}[/bold yellow]...\n")
     table = Table("Port", "State", "Service")
     port_range = range(start, end + 1)
     process_time = datetime.now()
@@ -42,11 +41,11 @@ def NmapPortScanner(target, start, end, threads, args):
 
     if table.row_count == 0:
         print(f"[bold red][!] No open ports on {target}.[/bold red]")
-        print(f"\n[+] Time elapsed: [bold green]{time}[/bold green]s")
 
     else:
         print(table)
-        print(f"\n[+] Time elapsed: [bold green]{time}[/bold green]s")
+        print(f"\n[bold green][+][/bold green] Time elapsed: [bold green]{time}s[/bold green]")
+
 
 
 

@@ -3,8 +3,8 @@ import typer
 from rich import print
 from typing_extensions import Annotated
 
-from utils import port_scanner
-from utils import network_scanner
+from modules import port_scanner
+from modules import network_scanner
 
 app = typer.Typer(rich_markup_mode="rich")
 

