@@ -18,13 +18,16 @@ def NmapNetScanner(target, timing, args):
                 host_list.append(host)
 
                 #getting the host ipv4 address
-                ipv4_address = (host['addresses']['ipv4'])
+                try:
+                    ipv4_address = (host['addresses']['ipv4'])
+
+                except:
+                    ipv4_address = "ipv4 address not found"
                 
                 #getting the host mac address
                 if len(host['addresses']) == 1:
                     try:
-                        mac_address = info.get_mac(ipv4_address)
-                        pass
+                        mac_address = info.get_mac(str(ipv4_address))
                     
                     except:
                         mac_address = "mac address not found"
@@ -46,6 +49,9 @@ def NmapNetScanner(target, timing, args):
                 #adding info to the table
                 table.add_row(hostname, ipv4_address, mac_address)
 
+        except KeyboardInterrupt:
+            sys.exit()
+            
         except Exception as e:
             print(f"[bold red][!]ERROR: {str(e)}[/bold red]")
             sys.exit(1)
@@ -54,7 +60,7 @@ def NmapNetScanner(target, timing, args):
     nm = PortScanner()
     info = DeviceInfo()
 
-    print(f"[bold yellow][-][/bold yellow] Scanning devices on [bold yellow]{target}[/bold yellow] network...\n")
+    print(f"[bold yellow][-][/bold yellow] Scanning devices through the network...\n")
     host_list = []
     table = Table("Hostname", "IP", "MAC")
     process_time = datetime.now()
@@ -67,9 +73,9 @@ def NmapNetScanner(target, timing, args):
         print(f"[bold red][!] No hosts found.[/bold red]")
     
     else:
-        print(f"[bold green][+] {len(host_list)}[/bold green] devices were found.")
+        print(f"[bold green][+][/bold green] [green]{len(host_list)}[/green] devices were found.")
         print(table)
-        print(f"\n[bold green][+][/bold green] Time elapsed: [bold green]{time}s[/bold green]")
+        print(f"\n[bold green][+][/bold green] Time elapsed: [green]{time}s[/green]")
 
 
 

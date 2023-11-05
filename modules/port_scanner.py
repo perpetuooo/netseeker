@@ -28,7 +28,7 @@ def NmapPortScanner(target, start, end, threads, args):
 
     nm = PortScanner()
 
-    print(f"[bold yellow][-][/bold yellow] Scanning ports {start} to {end} on [bold yellow]{target}[/bold yellow]...\n")
+    print(f"[bold yellow][-][/bold yellow] Scanning ports {start} to {end} on [yellow]{target}[/yellow]...\n")
     table = Table("Port", "State", "Service")
     port_range = range(start, end + 1)
     process_time = datetime.now()
@@ -44,7 +44,7 @@ def NmapPortScanner(target, start, end, threads, args):
 
     else:
         print(table)
-        print(f"\n[bold green][+][/bold green] Time elapsed: [bold green]{time}s[/bold green]")
+        print(f"\n[bold green][+][/bold green] Time elapsed: [green]{time}s[/green]")
 
 
 
