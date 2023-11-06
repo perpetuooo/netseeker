@@ -5,13 +5,14 @@ from typing_extensions import Annotated
 
 from modules import port_scanner
 from modules import network_scanner
+from modules import arp_spoofer
 
 app = typer.Typer(rich_markup_mode="rich")
 
 
 @app.command("port-scanner")
 def threaded_port_scanner(ip: Annotated[str, typer.Argument(help="Target IP/domain.")] = '127.0.0.1',
-                           args: Annotated[str, typer.Argument(help="Arguments for the scanner")] = "",
+                           args: Annotated[str, typer.Argument(help="Arguments for the scanner")] = '',
                             ports: Annotated[str, typer.Option(help="Desired port range to scan.")] = '1-1024', 
                              threads: Annotated[int, typer.Option(help="Threads amount for the scanner process.")] = 20):
     """Scan the given ports of the target address."""
@@ -33,6 +34,14 @@ def host_discovery(ip: Annotated[str, typer.Argument(help="Target IP range (ex: 
                      args: Annotated[str, typer.Option(help="Other arguments for the scanner.")] = ""):
     """Discover all devices on the local network."""
     network_scanner.NmapNetScanner(ip, timing, args)
+
+
+@app.command("arp-spoofer")
+def arp_spoofer(target: Annotated[str, typer.Argument(help="")] = '192.168.1.1',
+                 host: Annotated[str, typer.Argument(help="")] = '192.168.1.1',
+                  verbose: Annotated[bool, typer.Option(help="")] = 'False'):
+    """Not working yet."""
+    arp_spoofer(target, host, verbose)
 
 
 

