@@ -7,13 +7,13 @@ from datetime import datetime
 
 from resources.services import DeviceInfo
 
-
 def NmapNetScanner(target, timing, args):
 
     def scanner():
         try:
             result = nm.scan(target, arguments=f"-sn -T{timing} {args}", timeout=3000)
 
+            #searching info from the result dictionary
             for host in result['scan'].values():
                 host_list.append(host)
 
@@ -57,23 +57,24 @@ def NmapNetScanner(target, timing, args):
             sys.exit(1)
 
 
+    #initializing variables and objects
     nm = PortScanner()
     info = DeviceInfo()
-
-    print(f"[bold yellow][-][/bold yellow] Scanning devices through the network...\n")
     host_list = []
     table = Table("Hostname", "IP", "MAC")
     process_time = datetime.now()
 
+    print(f"[bold yellow][-][/bold yellow] Scanning devices through the network...\n")
+    
     scanner()
-
     time = int((datetime.now() - process_time).total_seconds())
 
+    #displaying results
     if table.row_count == 0:
         print(f"[bold red][!] No hosts found.[/bold red]")
     
     else:
-        print(f"[bold green][+][/bold green] [green]{len(host_list)}[/green] devices were found.")
+        print(f"[bold green][+][/bold green] [green]{len(host_list)}[/green] devices found.")
         print(table)
         print(f"\n[bold green][+][/bold green] Time elapsed: [green]{time}s[/green]")
 
