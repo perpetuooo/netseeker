@@ -1,9 +1,10 @@
 import sys
 import socket
-from nmap import PortScanner
 from rich import print
 from rich.table import Table
+from nmap import PortScanner
 from datetime import datetime
+from alive_progress import alive_bar
 
 from resources.services import DeviceInfo
 
@@ -22,7 +23,7 @@ def NmapNetScanner(target, timing, args):
                     ipv4_address = (host['addresses']['ipv4'])
 
                 except:
-                    ipv4_address = "ipv4 address not found"
+                    ipv4_address = "NOT FOUND"
                 
                 #getting the host mac address
                 if len(host['addresses']) == 1:
@@ -30,7 +31,7 @@ def NmapNetScanner(target, timing, args):
                         mac_address = info.get_mac(str(ipv4_address))
                     
                     except:
-                        mac_address = "mac address not found"
+                        mac_address = "NOT FOUND"
                 
                 else:
                     mac_address = (host['addresses']['mac'])
@@ -44,7 +45,7 @@ def NmapNetScanner(target, timing, args):
                         hostname = socket.gethostbyaddr(ipv4_address)[0]
                     
                     except socket.error:
-                        hostname = "host not found"
+                        hostname = "NOT FOUND"
                 
                 #adding info to the table
                 table.add_row(hostname, ipv4_address, mac_address)
@@ -63,12 +64,16 @@ def NmapNetScanner(target, timing, args):
     host_list = []
     table = Table("Hostname", "IP", "MAC")
     process_time = datetime.now()
-
-    print(f"[bold yellow][-][/bold yellow] Scanning devices through the network...\n")
     
-    scanner()
-    time = int((datetime.now() - process_time).total_seconds())
+    #starting scanner
+    with alive_bar(title=None, bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
+        bar.title("Scanning devices through the network...")
+        scanner()
+        bar.title("Scan completed!")
 
+    time = int((datetime.now() - process_time).total_seconds())
+    print('\n')
+    
     #displaying results
     if table.row_count == 0:
         print(f"[bold red][!] No hosts found.[/bold red]")

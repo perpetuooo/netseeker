@@ -3,12 +3,16 @@ from rich import print
 from rich.table import Table
 from nmap import PortScanner
 from datetime import datetime
+from alive_progress import alive_bar
 from concurrent.futures import ThreadPoolExecutor
+
+from resources.services import DeviceInfo
 
 def NmapPortScanner(target, start, end, threads, args):
 
     def scanner(port):
         try:
+            bar.title(f"Scanning port {port}...")
             result = nm.scan(str(target), str(port), arguments=args)
 
             #getting ports info from the result dictionary
@@ -30,21 +34,28 @@ def NmapPortScanner(target, start, end, threads, args):
 
     #initializing variables and objects
     nm = PortScanner()
+    info = DeviceInfo()
     table = Table("Port", "State", "Service")
     port_range = range(start, end + 1)
     process_time = datetime.now()
-    
-    if start - end == 0:
-        print(f"[bold yellow][-][/bold yellow] Scanning port {start} on [yellow]{target}[/yellow]...\n")
+   
+   #checks if the host is up
+    if info.ping(target):
+        print(f"[bold green][+][/bold green] Host {target} is [green]up[/green]!")
     
     else:
-        print(f"[bold yellow][-][/bold yellow] Scanning ports {start} to {end} on [yellow]{target}[/yellow]...\n")
+        print(f"[bold red][!] Host {target} is down, exiting...[/bold red]")
+        sys.exit() 
+    
 
     #calling multiple threads for the scanner function
-    with ThreadPoolExecutor(max_workers=threads) as executor:
-        executor.map(scanner, port_range)
+    with alive_bar(title=None, bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            executor.map(scanner, port_range)
+        bar.title("Scan completed!")
 
     time = int((datetime.now() - process_time).total_seconds())
+    print('\n')
 
     #displaying results
     if table.row_count == 0:
