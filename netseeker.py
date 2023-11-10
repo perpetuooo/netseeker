@@ -12,17 +12,17 @@ app = typer.Typer(rich_markup_mode="rich")
 
 
 @app.command("traceroute")
-def tracert(target: Annotated[str, typer.Argument(help="Target IP/domain.")] = '8.8.8.8',
-             timeout: Annotated[int, typer.Option(help="Timeout for receiving packets.")] = 5):
-    """ """
+def tracert(target: Annotated[str, typer.Argument(help="Target IP/domain.", show_default=False)],
+             timeout: Annotated[int, typer.Option(help="Timeout for receiving packets.", show_default=False)] = 5):
+    """Trace the path of IP packets with its location."""
     traceroute.SocketTraceroute(target, timeout)
 
 
 @app.command("port-scanner")
-def threaded_port_scanner(ip: Annotated[str, typer.Argument(help="Target IP/domain.")] = '127.0.0.1',
-                           args: Annotated[str, typer.Option(help="Arguments for the scanner")] = '',
-                            ports: Annotated[str, typer.Option(help="Desired port range to scan.")] = '1-1024', 
-                             threads: Annotated[int, typer.Option(help="Threads amount for the scanner process.")] = 20):
+def threaded_port_scanner(ip: Annotated[str, typer.Argument(help="Target IP/domain (loopback for default).", show_default=False)] = '127.0.0.1',
+                           ports: Annotated[str, typer.Option(help="Desired port range to scan (ex: 1-1024).", show_default=False)] = '1-1024', 
+                            args: Annotated[str, typer.Option(help="Arguments for the scanner")] = '',
+                             threads: Annotated[int, typer.Option(help="Threads amount for the scanner process.", show_default=False)] = 20):
     """Scan the given ports of the target address."""
     ports_pattern = r'(\d+)[-,.;](\d+)'
     match = re.search(ports_pattern, ports)
@@ -37,17 +37,17 @@ def threaded_port_scanner(ip: Annotated[str, typer.Argument(help="Target IP/doma
 
 
 @app.command("host-discovery")
-def host_discovery(ip: Annotated[str, typer.Argument(help="Target IP range (ex: 192.168.1.1/24).", show_default=False)] = '192.168.1.1/24',
-                    timing: Annotated[int, typer.Option(help="Scan parameters, from [b]0[/b] (slower but harder to be detected) to [b]5[/b] (fastest and most agressive).")] = 3,
+def host_discovery(ip: Annotated[str, typer.Argument(help="Target IP range (ex: 192.168.1.1/24).", show_default=False)],
+                    timing: Annotated[int, typer.Option(help="[b]0[/b] (slower but harder to be detected) to [b]5[/b] (fastest and most agressive).", show_default=False)] = 3,
                      args: Annotated[str, typer.Option(help="Other arguments for the scanner.")] = ""):
     """Discover all devices on the local network."""
     network_scanner.NmapNetScanner(ip, timing, args)
 
 
 @app.command("arp-spoofer")
-def arp_spoofer(target: Annotated[str, typer.Argument(help="")] = '192.168.1.1',
-                 host: Annotated[str, typer.Argument(help="")] = '192.168.1.1',
-                  verbose: Annotated[bool, typer.Option(help="")] = 'False'):
+def arp_spoofer(target: Annotated[str, typer.Argument(help="Target IP.")],
+                 host: Annotated[str, typer.Argument(help="Target host.")],
+                  verbose: Annotated[bool, typer.Option(help="Verbose flag.")] = 'False'):
     """Not working yet."""
     arp_spoofer(target, host, verbose)
 
