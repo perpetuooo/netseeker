@@ -13,6 +13,7 @@ class DeviceInfo:
             return False
 
 
+    #get the mac address from the target IP using an ARP request
     def get_mac(self, ip):
         arp_request = scapy.ARP(pdst=ip)
         ether_frame = scapy.Ether(dst="ff:ff:ff:ff:ff:ff")
@@ -23,6 +24,7 @@ class DeviceInfo:
         return response_list[0][1].hwsrc
 
 
+    #extracting the default gateway IP address
     def get_default_gateway(self):
         gw = scapy.conf.route.route("0.0.0.0")[2]
 
