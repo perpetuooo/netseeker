@@ -1,9 +1,10 @@
 import requests
 import socket
 import struct
-import time
 import sys
 import re
+from rich import print
+from datetime import datetime
 
 """
 ----  TO DO:  ----
@@ -25,14 +26,31 @@ def SocketTraceroute(target, timeout):
         return location_data
 
 
+    #getting the ip address from a domain
     if target.endswith(".com"):
-        target = socket.gethostbyname(target)
+        try:
+            target = socket.gethostbyname(target)
+        
+        except Exception as e:
+            print(f"[bold red][!] ERROR: {e}[/bold red]")
+            sys.exit(1)
 
+    #creating the ICMP and UDP socket packets
     icmp_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 
+    #setting the timeout for receiving packets and binding the socket for ports
+    icmp_socket.settimeout(timeout)
+    icmp_socket.bind(("", 0))
+
+    ttl = 1
+
     while True:
-        pass
+        process_time = datetime.now()
+        udp_socket.setsockopt(socket.SOL_IP, socket.IP_TTL, ttl)
+        udp_socket.sendto(target, 33434)
+
+    time = int((datetime.now() - process_time).total_seconds())
 
 
 
