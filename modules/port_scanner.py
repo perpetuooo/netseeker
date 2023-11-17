@@ -1,3 +1,4 @@
+import re
 import sys
 from rich import print
 from rich.table import Table
@@ -8,11 +9,11 @@ from concurrent.futures import ThreadPoolExecutor
 
 from resources.services import DeviceInfo
 
-def NmapPortScanner(target, start, end, threads, args):
+def NmapPortScanner(target, ports, threads, args):
 
     def scanner(port):
         try:
-            bar.title(f"Scanning port {port}...")
+            bar.title(f"Scanning port {port} ")
             result = nm.scan(str(target), str(port), arguments=args)
 
             #getting ports info from the result dictionary
@@ -36,8 +37,18 @@ def NmapPortScanner(target, start, end, threads, args):
     nm = PortScanner()
     info = DeviceInfo()
     table = Table("Port", "State", "Service")
-    port_range = range(start, end + 1)
     process_time = datetime.now()
+    ports_pattern = r'(\d+)[-,.;](\d+)'
+
+    #getting values from the argument string
+    match = re.search(ports_pattern, ports)
+
+    if match:
+        port_range = range(int(match.group(1)), int(match.group(2)) + 1)
+
+    else:
+        print("[bold red][!] Invalid port range, use 'start-end' or 'start,end'.[/bold red]")
+        sys.exit(1)
    
    #checks if the host is up
     if info.ping(target):

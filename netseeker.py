@@ -1,6 +1,4 @@
-import re
 import typer
-from rich import print
 from typing_extensions import Annotated
 
 from modules import traceroute
@@ -15,7 +13,7 @@ app = typer.Typer(rich_markup_mode="rich")
 def tracert(target: Annotated[str, typer.Argument(help="Target IP/domain.", show_default=False)],
              timeout: Annotated[int, typer.Option(help="Timeout for receiving packets.")] = 5):
     """Trace the path of IP packets with its location."""
-    traceroute.SocketTraceroute(target, timeout)
+    traceroute.Traceroute(target, timeout)
 
 
 @app.command("port-scanner")
@@ -24,16 +22,7 @@ def threaded_port_scanner(ip: Annotated[str, typer.Argument(help="Target IP/doma
                             threads: Annotated[int, typer.Option(help="Threads amount for the scanner process.")] = 20,
                              args: Annotated[str, typer.Option(help="Other arguments for the scanner", show_default=False)] = ''):
     """Scan the given ports of the target address."""
-    ports_pattern = r'(\d+)[-,.;](\d+)'
-    match = re.search(ports_pattern, ports)
-
-    if match:
-        start = int(match.group(1))
-        end = int(match.group(2))
-        port_scanner.NmapPortScanner(ip, start, end, threads, args)
-
-    else:
-        raise ValueError("[!] Invalid port range, use 'start-end' or 'start,end'.")
+    port_scanner.NmapPortScanner(ip, ports, threads, args)
 
 
 @app.command("host-discovery")
