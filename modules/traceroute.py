@@ -1,22 +1,21 @@
-import subprocess
+import re
+import sys
+import socket
 import requests
 import platform
-import socket
-import sys
-import re
+import subprocess
 from rich import print
 from datetime import datetime
 from alive_progress import alive_bar
 
 """
 ----  TO DO:  ----
-find a way to organize the the result output; 
 create a map with the info provided;
 """
 
 def Traceroute(target):
 
-    #getting location info from the ip address
+    #getting location info from an ip
     def get_location(ip):
         if ip.endswith(".com"):
             ip = socket.gethostbyname(ip)
@@ -42,32 +41,47 @@ def Traceroute(target):
         print(f"[bold red][!] Invalid OS.[/bold red]")
         sys.exit(1)
 
+    #initializing variables
+    ip_pattern = r'(\d+\.\d+\.\d+\.\d+)'
+    process_time = datetime.now()
+    ip_list = []
+    skip = True
 
-    with alive_bar(title="Tracerouting...", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
+
+    #getting the users ip address and appending to the ip list
+    ip_list.append(str(requests.get('https://api.ipify.org').text))
+
+    #running the traceroute
+    with alive_bar(title=f"Tracerouting to {target}", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
         result = subprocess.run([command, target], stdout=subprocess.PIPE, text=True, universal_newlines=True)
         bar.title("Done!")
 
+    #printing the result
     for line in result.stdout:
         print(line, end="")
 
+    #finding all addresses in the filtred result
     filtred_result = result.stdout.splitlines()
-    ip_pattern = r'(\d+\.\d+\.\d+\.\d+)'
-    ip_list = []
 
     for line in filtred_result:
         match = re.findall(ip_pattern, line)
 
         if match:
+            #skiping the first match because the regex also gets the destination address from the top of the result
+            if skip:
+                skip = False
+                continue
+
             ip_list.extend(match)
 
+    #displaying results
     print('\n')
 
     for ip in ip_list:
-        try:
-            print(f"{ip} : {get_location(ip)}")
+        print(f"[bold green][+][/bold green] [white]{ip}[/white] - {get_location(ip)}")
 
-        except:
-            print(f"{ip} location not found...")
+    time = int((datetime.now() - process_time).total_seconds())
+    print(f"\n[bold green][+][/bold green] Time elapsed: [green]{time}s[/green]")
 
 
 

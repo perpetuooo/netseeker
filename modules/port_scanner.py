@@ -13,7 +13,7 @@ def NmapPortScanner(target, ports, threads, args):
 
     def scanner(port):
         try:
-            bar.title(f"Scanning port {port} ")
+            bar.title(f"Scanning port {port}")
             result = nm.scan(str(target), str(port), arguments=args)
 
             #getting ports info from the result dictionary

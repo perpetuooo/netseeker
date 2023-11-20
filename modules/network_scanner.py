@@ -66,10 +66,9 @@ def NmapNetScanner(target, timing, args):
     process_time = datetime.now()
     
     #starting scanner
-    with alive_bar(title=None, bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
-        bar.title("Scanning devices through the network...")
+    with alive_bar(title="Scanning devices through the network", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
         scanner()
-        bar.title("Scan completed!")
+        bar.title("Done!")
 
     time = int((datetime.now() - process_time).total_seconds())
     print('\n')
