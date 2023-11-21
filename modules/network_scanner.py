@@ -65,6 +65,7 @@ def NmapNetScanner(target, timing, args):
     table = Table("Hostname", "IP", "MAC")
     process_time = datetime.now()
     
+    
     #starting scanner
     with alive_bar(title="Scanning devices through the network", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
         scanner()

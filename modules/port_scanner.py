@@ -23,6 +23,10 @@ def NmapPortScanner(target, ports, threads, args):
 
             #adding info to the table if the port its open
             if port_status == "open":
+                
+                if not port_service:
+                    port_service = "NOT FOUND"
+
                 table.add_row(str(port), port_state, port_service)
 
         except Exception as e:

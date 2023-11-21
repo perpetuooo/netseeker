@@ -13,7 +13,7 @@ from alive_progress import alive_bar
 create a map with the info provided;
 """
 
-def Traceroute(target):
+def TracerouteWithMap(target):
 
     #getting location info from an ip
     def get_location(ip):
@@ -47,9 +47,9 @@ def Traceroute(target):
     ip_list = []
     skip = True
 
-
     #getting the users ip address and appending to the ip list
     ip_list.append(str(requests.get('https://api.ipify.org').text))
+
 
     #running the traceroute
     with alive_bar(title=f"Tracerouting to {target}", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
@@ -86,5 +86,5 @@ def Traceroute(target):
 
 
 if __name__ == '__main__':
-    Traceroute("8.8.8.8")
+    TracerouteWithMap("8.8.8.8")
     
