@@ -36,9 +36,10 @@ def host_discovery(ip: Annotated[str, typer.Argument(help="Target IP range (ex: 
 @app.command("arp-spoofer")
 def arp_poisoning(target: Annotated[str, typer.Argument(help="Target IP.", show_default=False)],
                    host: Annotated[str, typer.Argument(help="Target host (default gateway for default).", show_default=False)] = "",
-                    verbose: Annotated[bool, typer.Option(help="Verbose flag.", show_default=False)] = 'False'):
+                    timing: Annotated[int, typer.Option(help="Timing between sendind packets.", show_default=False)] = 2,
+                     verbose: Annotated[bool, typer.Option(help="Verbose flag.", show_default=False)] = 'False'):
     """Not working yet."""
-    #arp_spoofer.ScapyArpSpoofer(target, host, verbose)
+    arp_spoofer.ScapyArpSpoofer(target, host, timing, verbose)
 
 
 

@@ -21,7 +21,11 @@ class DeviceInfo:
 
         response_list = scapy.srp(request, timeout=5, retry=1, verbose=False)[0]
 
-        return response_list[0][1].hwsrc
+        if response_list:
+            return response_list[0][1].hwsrc
+
+        else:
+            raise Exception(f"{ip} MAC not found.")
 
 
     #extracting the default gateway IP address
