@@ -67,7 +67,7 @@ def NmapNetScanner(target, timing, args):
     
     
     #starting scanner
-    with alive_bar(title="Scanning devices through the network", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
+    with alive_bar(title=f"Scanning devices through {target} network", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
         scanner()
         bar.title("Done!")
 

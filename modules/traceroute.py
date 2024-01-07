@@ -13,7 +13,7 @@ from alive_progress import alive_bar
 create a map with the info provided;
 """
 
-def TracerouteWithMap(target):
+def TracerouteWithMap(target, timeout):
 
     #getting location info from an ip
     def get_location(ip):
@@ -86,5 +86,5 @@ def TracerouteWithMap(target):
 
 
 if __name__ == '__main__':
-    TracerouteWithMap("8.8.8.8")
+    pass
     

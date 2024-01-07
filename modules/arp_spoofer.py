@@ -29,6 +29,7 @@ def ScapyArpSpoofer(target, host, timing, verbose):
         host = info.get_default_gateway()
         print(f"[bold green][+][/bold green] Your default gateway is {host}.")
 
+
     try:
         #initializing variables and objects
         info = DeviceInfo()
@@ -46,7 +47,7 @@ def ScapyArpSpoofer(target, host, timing, verbose):
             if verbose:
                 print(f"[bold green][+][/bold green] Sent to [green]{target}[/green] : [green]{host}[/green] at [green]{scapy.ARP().hwsrc}[/green]")
                 print(f"[bold green][+][/bold green] Packets sent: [green]{packets_count}[/green]")
-                #print("")
+                print("[bold]-[/bold]" * 40)
 
             time.sleep(timing)
     
@@ -60,9 +61,15 @@ def ScapyArpSpoofer(target, host, timing, verbose):
 
     except Exception as e:
         print(f"[bold red][!] ERROR: {str(e)}[/bold red]")
-        restore_cache(target, host, target_mac, host_mac)
-        restore_cache(host, target, host_mac, target_mac)
-        sys.exit(1)
+        
+        try:
+            restore_cache(target, host, target_mac, host_mac)
+            restore_cache(host, target, host_mac, target_mac)
+            print(f"[bold green][+][/bold green] Cache restored.")
+            sys.exit(1)
+
+        except:
+            sys.exit(1)
 
 
 
