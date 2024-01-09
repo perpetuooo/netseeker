@@ -1,7 +1,7 @@
 import os
 import sys
 import rich
-import argparse
+from argparse import ArgumentParser, Namespace
 
 from modules import traceroute
 from modules import port_scanner
@@ -45,15 +45,35 @@ def arp_poisoning(target: Annotated[str, typer.Argument(help="Target IP.", show_
     arp_spoofer.ScapyArpSpoofer(target, host, timing, verbose)
 """
 
+
 def main():
+
+    """
+    ----  TO DO:  ----
+    using the "-h" argument breaks the loop, find out why;
+    """
+
+    parser = ArgumentParser()
+    parser.add_argument('echo', help="Echos the given string.")
+    parser.add_argument('-c', '--caps', help="Capitalizes the echo strig.", action='store_true')
+
     while True:
         try:
             command = input(f"\necho input > ")
 
-            os.system(f"python runner.py {command}")
+            args: Namespace = parser.parse_args(command.split())
 
-        except Exception:
-            print("Invalid command, try again.")
+            if args.caps and args.echo:
+                print((args.echo).upper())
+
+            elif args.echo:
+                print(args.echo)
+
+            else:
+                print("Invalid argument, try again...")
+
+        #except Exception:
+            #print("Invalid command, try again...")
 
         except KeyboardInterrupt:
             sys.exit(0)
