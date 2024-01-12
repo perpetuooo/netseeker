@@ -1,9 +1,6 @@
 import sys
-import cmd
-import typer
+import cmd2
 from rich import print
-from typer import Typer, Argument, Option
-from typing_extensions import Annotated
 
 from modules import traceroute
 from modules import port_scanner
@@ -45,25 +42,33 @@ def arp_poisoning(target: Annotated[str, Argument(help="Target IP.", show_defaul
     ""Not working yet.""
     arp_spoofer.ScapyArpSpoofer(target, host, timing, verbose)"""
 
-class Main(cmd.Cmd):
+class Main(cmd2.Cmd):
     prompt = "test > "
     arguments = []
 
 
-    def do_test(self, line):
-        print("[green]Hello, World![/green]")
-
-    def do_help(self, line):
-        print("Help")
-
-    def do_EOF(self, line):
-        return True
+    #def __init__(self):
+        #super.__init__()
 
 
+    parser = cmd2.Cmd2ArgumentParser()
+    parser.add_argument('-c', '--caps', action='store_true', help='all caps when you spell the man name')
+    parser.add_argument('string', nargs='+', help='string to echo.')
+
+    @cmd2.with_argparser(parser)
+    def do_echo(self, args):
+        """Echoes the given string."""
+        words = []
+        for word in args.string:
+            if args.caps:
+                word = word.upper()
+            
+            words.append(word)
+        
+        print(' '.join(words))
+        
 
 if __name__ == "__main__":
-    try:
-        Main().cmdloop()
+    app = Main()
+    app.cmdloop()
 
-    except KeyboardInterrupt:
-        sys.exit("\n^C\n")
