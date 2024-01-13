@@ -8,11 +8,11 @@ from alive_progress import alive_bar
 
 from resources.services import DeviceInfo
 
-def NmapNetScanner(target, timing, args):
+def NmapNetScanner(target, timing):
 
     def scanner():
         try:
-            result = nm.scan(target, arguments=f"{args} -T{timing}", timeout=3000)
+            result = nm.scan(target, arguments=f"-sn -T{timing}", timeout=3000)
 
             #searching info from the result dictionary
             for host in result['scan'].values():

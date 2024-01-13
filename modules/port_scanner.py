@@ -9,12 +9,12 @@ from concurrent.futures import ThreadPoolExecutor
 
 from resources.services import DeviceInfo
 
-def NmapPortScanner(target, ports, threads, args):
+def NmapPortScanner(target, ports, threads):
 
     def scanner(port):
         try:
             bar.title(f"Scanning port {port}")
-            result = nm.scan(str(target), str(port), arguments=args)
+            result = nm.scan(str(target), str(port))
 
             #getting ports info from the result dictionary
             port_status = (result['scan'][target]['tcp'][port]['state'])
@@ -50,18 +50,18 @@ def NmapPortScanner(target, ports, threads, args):
     if match:
         port_range = range(int(match.group(1)), int(match.group(2)) + 1)
 
+        #checks if the host is up
+        if info.ping(target):
+            print(f"[bold green][+][/bold green] Host {target} is [green]up[/green]!")
+        
+        else:
+            print(f"[bold red][!][/bold red] Host {target} is [red]down[/red], exiting...")
+            sys.exit() 
+
     else:
         print("[bold red][!] Invalid port range, use 'start-end' or 'start,end'.[/bold red]")
         sys.exit(1)
    
-   #checks if the host is up
-    if info.ping(target):
-        print(f"[bold green][+][/bold green] Host {target} is [green]up[/green]!")
-    
-    else:
-        print(f"[bold red][!][/bold red] Host {target} is [red]down[/red], exiting...")
-        sys.exit() 
-    
 
     #calling multiple threads for the scanner function
     with alive_bar(title=None, bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
