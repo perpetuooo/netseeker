@@ -59,7 +59,7 @@ def NmapPortScanner(target, ports, threads, args):
         print(f"[bold green][+][/bold green] Host {target} is [green]up[/green]!")
     
     else:
-        print(f"[bold red][!] Host {target} is down, exiting...[/bold red]")
+        print(f"[bold red][!][/bold red] Host {target} is [red]down[/red], exiting...")
         sys.exit() 
     
 
