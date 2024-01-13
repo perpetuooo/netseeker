@@ -51,32 +51,35 @@ def TracerouteWithMap(target, timeout):
     ip_list.append(str(requests.get('https://api.ipify.org').text))
 
 
-    #running the traceroute
+    #running the traceroute command
     with alive_bar(title=f"Tracerouting to {target}", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
         result = subprocess.run([command, target], stdout=subprocess.PIPE, text=True, universal_newlines=True)
+
+        #for line in result.stdout:
+            #print(line, end="")
+
+        bar.title("Parsing results")
+
+        #finding all addresses in the filtred result
+        filtred_result = result.stdout.splitlines()
+
+        for line in filtred_result:
+            match = re.findall(ip_pattern, line)
+
+            if match:
+                #skiping the first match because the regex also gets the destination address from the top of the result
+                if skip:
+                    skip = False
+                    continue
+
+                ip_list.extend(match)
+
         bar.title("Done!")
 
-    #printing the result
-    for line in result.stdout:
-        print(line, end="")
 
-    #finding all addresses in the filtred result
-    filtred_result = result.stdout.splitlines()
-
-    for line in filtred_result:
-        match = re.findall(ip_pattern, line)
-
-        if match:
-            #skiping the first match because the regex also gets the destination address from the top of the result
-            if skip:
-                skip = False
-                continue
-
-            ip_list.extend(match)
-
-    #displaying results
     print('\n')
 
+    #displaying results
     for ip in ip_list:
         print(f"[bold green][+][/bold green] [white]{ip}[/white] - {get_location(ip)}")
 
