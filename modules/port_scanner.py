@@ -21,7 +21,6 @@ def NmapPortScanner(target, ports, threads):
             port_state = (result['scan'][target]['tcp'][port]['state'])
             port_service = (result['scan'][target]['tcp'][port]['name'])
 
-            #adding info to the table if the port its open
             if port_status == "open":
                 
                 if not port_service:
@@ -37,20 +36,18 @@ def NmapPortScanner(target, ports, threads):
             sys.exit()
 
 
-    #initializing variables and objects
     nm = PortScanner()
     info = DeviceInfo()
     table = Table("Port", "State", "Service")
     process_time = datetime.now()
     ports_pattern = r'(\d+)[-,.;](\d+)'
 
-    #getting values from the argument string
     match = re.search(ports_pattern, ports)
 
+    #getting values from the argument string and checking if the host is up
     if match:
         port_range = range(int(match.group(1)), int(match.group(2)) + 1)
 
-        #checks if the host is up
         if info.ping(target):
             print(f"[bold green][+][/bold green] Host {target} is [green]up[/green]!")
         
@@ -72,14 +69,12 @@ def NmapPortScanner(target, ports, threads):
     time = int((datetime.now() - process_time).total_seconds())
     print('\n')
 
-    #displaying results
     if table.row_count == 0:
         print(f"[bold red][!] No open ports on {target}.[/bold red]")
 
     else:
         print(table)
         print(f"\n[bold green][+][/bold green] Time elapsed: [green]{time}s[/green]")
-
 
 
 

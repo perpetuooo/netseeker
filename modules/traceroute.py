@@ -30,7 +30,6 @@ def TracerouteWithMap(target, timeout):
         return location_data
 
 
-    #changing the command depending on the OS
     if platform.system() == "Windows":
         command = "tracert"
 
@@ -41,13 +40,12 @@ def TracerouteWithMap(target, timeout):
         print(f"[bold red][!] Invalid OS.[/bold red]")
         sys.exit(1)
 
-    #initializing variables
     ip_pattern = r'(\d+\.\d+\.\d+\.\d+)'
     process_time = datetime.now()
     ip_list = []
     skip = True
 
-    #getting the users ip address and appending to the ip list
+    #getting the users public ip address and appending it to the ip list
     ip_list.append(str(requests.get('https://api.ipify.org').text))
 
 
@@ -55,14 +53,10 @@ def TracerouteWithMap(target, timeout):
     with alive_bar(title=f"Tracerouting to {target}", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
         result = subprocess.run([command, target], stdout=subprocess.PIPE, text=True, universal_newlines=True)
 
-        #for line in result.stdout:
-            #print(line, end="")
-
         bar.title("Parsing results")
-
-        #finding all addresses in the filtred result
         filtred_result = result.stdout.splitlines()
 
+        #finding all addresses in the filtred result
         for line in filtred_result:
             match = re.findall(ip_pattern, line)
 
@@ -79,7 +73,6 @@ def TracerouteWithMap(target, timeout):
 
     print('\n')
 
-    #displaying results
     for ip in ip_list:
         print(f"[bold green][+][/bold green] [white]{ip}[/white] - {get_location(ip)}")
 

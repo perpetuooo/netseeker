@@ -18,14 +18,12 @@ def NmapNetScanner(target, timing):
             for host in result['scan'].values():
                 host_list.append(host)
 
-                #getting the host ipv4 address
                 try:
                     ipv4_address = (host['addresses']['ipv4'])
 
                 except:
                     ipv4_address = "NOT FOUND"
                 
-                #getting the host mac address
                 if len(host['addresses']) == 1:
                     try:
                         mac_address = info.get_mac(str(ipv4_address))
@@ -36,7 +34,6 @@ def NmapNetScanner(target, timing):
                 else:
                     mac_address = (host['addresses']['mac'])
 
-                #getting the hostname
                 if len(host['vendor']) == 1:
                     hostname = (host['vendor'][mac_address])
                 
@@ -47,7 +44,6 @@ def NmapNetScanner(target, timing):
                     except socket.error:
                         hostname = "NOT FOUND"
                 
-                #adding info to the table
                 table.add_row(hostname, ipv4_address, mac_address)
 
         except KeyboardInterrupt:
@@ -58,7 +54,6 @@ def NmapNetScanner(target, timing):
             sys.exit(1)
 
 
-    #initializing variables and objects
     nm = PortScanner()
     info = DeviceInfo()
     host_list = []
@@ -74,7 +69,6 @@ def NmapNetScanner(target, timing):
     time = int((datetime.now() - process_time).total_seconds())
     print('\n')
     
-    #displaying results
     if table.row_count == 0:
         print(f"[bold red][!] No hosts found.[/bold red]")
     

