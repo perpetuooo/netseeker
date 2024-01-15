@@ -17,14 +17,15 @@ def get_info():
 
 @app.command("traceroute")
 def tracert(target: Annotated[str, Argument(help="Target IP/domain.")] = "",
-            timeout: Annotated[int, Option("--timeout", "-t", help="Timeout for receiving packets.")] = 5):
-    """Trace the path of IP packets and create a map with the info provided."""
-    traceroute.TracerouteWithMap(target, timeout)
+            timeout: Annotated[int, Option("--timeout", "-t", help="Timeout for receiving packets (milliseconds).")] = 5000,
+            result_map: Annotated[bool, Option("--map", "-m", help="Create a map with the info provided.")] = False):
+    """Trace the path of IP packets."""
+    traceroute.TracerouteWithMap(target, timeout, result_map)
 
 
 @app.command("port-scanner")
-def threaded_port_scanner(ip: Annotated[str, Argument(help="Target IP/domain.")] = '127.0.0.1',
-                          ports: Annotated[str, Argument(help="Desired port range to scan (use start-end).")] = '1-1024', 
+def threaded_port_scanner(ip: Annotated[str, Argument(help="Target IP/domain (loopback for default).")] = "",
+                          ports: Annotated[str, Argument(help="Desired port range to scan (example: 1-1024).")] = "", 
                           threads: Annotated[int, Option("--threads", "-t", help="Threads amount for the scanner process.")] = 20):
     """Scan the given ports of the target address."""
     port_scanner.NmapPortScanner(ip, ports, threads)

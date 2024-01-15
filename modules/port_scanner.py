@@ -42,6 +42,13 @@ def NmapPortScanner(target, ports, threads):
     process_time = datetime.now()
     ports_pattern = r'(\d+)[-,.;](\d+)'
 
+    if not target:
+        target = "127.0.0.1"
+
+    if not ports:
+        ports = "1-1024"
+
+
     match = re.search(ports_pattern, ports)
 
     #getting values from the argument string and checking if the host is up
@@ -65,6 +72,7 @@ def NmapPortScanner(target, ports, threads):
         with ThreadPoolExecutor(max_workers=threads) as executor:
             executor.map(scanner, port_range)
         bar.title("Scan completed!")
+
 
     time = int((datetime.now() - process_time).total_seconds())
     print('\n')
