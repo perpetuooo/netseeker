@@ -1,3 +1,4 @@
+import ipaddress
 import scapy.all as scapy
 
 class DeviceInfo:
@@ -33,6 +34,21 @@ class DeviceInfo:
         gw = scapy.conf.route.route("0.0.0.0")[2]
 
         return gw
+
+
+    #checks ipv4 stats
+    def check_ipv4(self, ip):
+        try:
+            target = ipaddress.ip_address(ip)
+
+            if target.is_private():
+                return "private"
+            
+            else:
+                return "public"
+        
+        except ValueError:
+            return False
 
 
 

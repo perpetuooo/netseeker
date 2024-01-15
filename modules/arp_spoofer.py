@@ -3,7 +3,7 @@ import time
 import scapy.all as scapy
 from rich import print
 
-from resources.services import DeviceInfo
+from resources import services
 
 """
 ----  TO DO:  ----
@@ -31,7 +31,7 @@ def ScapyArpSpoofer(target, host, timing, verbose):
 
 
     try:
-        info = DeviceInfo()
+        info = services.DeviceInfo()
         target_mac = info.get_mac(target)
         host_mac = info.get_mac(host)
         packets_count = 0

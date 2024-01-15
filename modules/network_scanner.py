@@ -6,7 +6,7 @@ from nmap import PortScanner
 from datetime import datetime
 from alive_progress import alive_bar
 
-from resources.services import DeviceInfo
+from resources import services
 
 def NmapNetScanner(target, timing):
 
@@ -55,7 +55,7 @@ def NmapNetScanner(target, timing):
 
 
     nm = PortScanner()
-    info = DeviceInfo()
+    info = services.DeviceInfo()
     host_list = []
     table = Table("Hostname", "IP", "MAC")
     process_time = datetime.now()

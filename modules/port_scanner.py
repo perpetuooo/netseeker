@@ -7,7 +7,7 @@ from datetime import datetime
 from alive_progress import alive_bar
 from concurrent.futures import ThreadPoolExecutor
 
-from resources.services import DeviceInfo
+from resources import services
 
 def NmapPortScanner(target, ports, threads):
 
@@ -37,7 +37,7 @@ def NmapPortScanner(target, ports, threads):
 
 
     nm = PortScanner()
-    info = DeviceInfo()
+    info = services.DeviceInfo()
     table = Table("Port", "State", "Service")
     process_time = datetime.now()
     ports_pattern = r'(\d+)[-,.;](\d+)'
