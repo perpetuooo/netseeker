@@ -1,6 +1,7 @@
 import re
 import sys
 import socket
+import folium
 import requests
 import platform
 import subprocess
@@ -8,12 +9,15 @@ from rich import print
 from datetime import datetime
 from alive_progress import alive_bar
 
+from resources import services
+
 """
 ----  TO DO:  ----
 create a map with the info provided;
+implement timeout (-w) in the command;
 """
 
-def TracerouteWithMap(target, timeout):
+def TracerouteWithMap(target, timeout, gen_map):
 
     #getting location info from an ip
     def get_location(ip):
@@ -40,9 +44,11 @@ def TracerouteWithMap(target, timeout):
         print(f"[bold red][!] Invalid OS.[/bold red]")
         sys.exit(1)
 
+    info = services.DeviceInfo()
     ip_pattern = r'(\d+\.\d+\.\d+\.\d+)'
     process_time = datetime.now()
     ip_list = []
+    location_list = []
     skip = True
 
     #getting the users public ip address and appending it to the ip list
@@ -56,7 +62,7 @@ def TracerouteWithMap(target, timeout):
         bar.title("Parsing results")
         filtred_result = result.stdout.splitlines()
 
-        #finding all addresses in the filtred result
+        #finding all ipv4 addresses in the filtred result
         for line in filtred_result:
             match = re.findall(ip_pattern, line)
 
@@ -67,14 +73,31 @@ def TracerouteWithMap(target, timeout):
                     continue
 
                 ip_list.extend(match)
+        
+        for ip in ip_list:
+            location = get_location(ip)
+            location_list.append(location)
 
-        bar.title("Done!")
 
+        if gen_map:
+            bar.title("Generating map")
+            prev = None
+            m = folium.Map()
 
+            for ip in ip_list:
+                if ip == prev or info.check_ipv4(ip) == "private":
+                    continue
+
+                prev = ip
+
+        bar.title("Traceroute complete!")
+    
+    
     print('\n')
 
-    for ip in ip_list:
-        print(f"[bold green][+][/bold green] [white]{ip}[/white] - {get_location(ip)}")
+    for ip, location in zip(ip_list, location_list):
+        print(f"[bold green][+][/bold green] [white]{ip}[/white] - {location}")
+
 
     time = int((datetime.now() - process_time).total_seconds())
     print(f"\n[bold green][+][/bold green] Time elapsed: [green]{time}s[/green]")
