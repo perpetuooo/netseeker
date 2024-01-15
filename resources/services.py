@@ -41,7 +41,7 @@ class DeviceInfo:
         try:
             target = ipaddress.ip_address(ip)
 
-            if target.is_private():
+            if target.is_private:
                 return "private"
             
             else:
