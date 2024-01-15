@@ -75,8 +75,8 @@ def TracerouteWithMap(target, timeout, gen_map):
                 ip_list.extend(match)
         
         for ip in ip_list:
-            location = get_location(ip)
-            location_list.append(location)
+            loc = get_location(ip)
+            location_list.append(loc)
 
 
         if gen_map:
@@ -84,15 +84,29 @@ def TracerouteWithMap(target, timeout, gen_map):
             prev = None
             m = folium.Map()
 
-            for ip in ip_list:
+            for ip, location in zip(ip_list, location_list):
                 if ip == prev or info.check_ipv4(ip) == "private":
                     continue
+            
+                lat = location['lat']
+                long = location['long']
+                city = location['city']
+                country = location['country']
+                
+                folium.Marker(
+                    location=[lat, long],
+                    tooltip=str(ip),
+                    popup=f"{city}, {country}",
+                    icon=folium.Icon(icon="green"),
+                ).add_to(m)
 
                 prev = ip
+            
+            m.save("index.html")
 
         bar.title("Traceroute complete!")
     
-    
+
     print('\n')
 
     for ip, location in zip(ip_list, location_list):
