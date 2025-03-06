@@ -19,7 +19,7 @@ implement timeout (-w) in the command;
 
 def TracerouteWithMap(target, timeout, gen_map):
 
-    #getting location info from an ip
+    # Location info from an IP address.
     def get_location(ip):
         if ip.endswith(".com"):
             ip = socket.gethostbyname(ip)

