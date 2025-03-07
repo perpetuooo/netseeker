@@ -1,20 +1,16 @@
 import ipaddress
 import scapy.all as scapy
 
-class DeviceInfo:
-    #creates an ICMP packet and sends to the target host, waiting for a reply
+class DevicesInfo:
+    # Sends an ICMP packet to the target host, waiting for a reply.
     def ping(self, target):
         packet = scapy.IP(dst=target) / scapy.ICMP()
         reply = scapy.sr1(packet, timeout=1, verbose=False)
 
-        if reply:
-            return True
-
-        else:
-            return False
+        return True if reply else False
 
 
-    #get the mac address from the target IP using an ARP request
+    # Gets the MAC address from the target IP using an ARP request.
     def get_mac(self, ip):
         arp_request = scapy.ARP(pdst=ip)
         ether_frame = scapy.Ether(dst="ff:ff:ff:ff:ff:ff")
@@ -29,23 +25,19 @@ class DeviceInfo:
             raise Exception(f"{ip} MAC not found.")
 
 
-    #extracting the default gateway IP address
+    # Gets default gateway.
     def get_default_gateway(self):
         gw = scapy.conf.route.route("0.0.0.0")[2]
 
         return gw
 
 
-    #checks ipv4 stats
+    # Checks IPv4 type.
     def check_ipv4(self, ip):
         try:
             target = ipaddress.ip_address(ip)
-
-            if target.is_private:
-                return "private"
             
-            else:
-                return "public"
+            return False if target.is_private else True
         
         except ValueError:
             return False
