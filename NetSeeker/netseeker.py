@@ -18,7 +18,7 @@ def get_info():
 
 @app.command("traceroute")
 def tracert(target: Annotated[str, Argument(help="Target IP/domain.")] = "",
-            timeout: Annotated[int, Option("--timeout", "-t", help="Timeout for receiving packets (milliseconds).")] = 5000,
+            timeout: Annotated[int, Option("--timeout", "-t", help="Timeout for receiving packets (seconds).")] = 5,
             result_map: Annotated[bool, Option("--map", "-m", help="Create a map with the info provided.")] = False):
     """Trace the path of IP packets."""
     # traceroute.TracerouteWithMap(target, timeout, result_map)
@@ -26,10 +26,12 @@ def tracert(target: Annotated[str, Argument(help="Target IP/domain.")] = "",
 
 @app.command("portscan")
 def threaded_port_scanner(ip: Annotated[str, Argument(help="Target IP/domain.")] = "127.0.0.1",
-                          ports: Annotated[str, Argument(help="Desired ports to scan (ex: 80 / 1-1024 / 20,22,443).")] = "1-1024", 
-                          threads: Annotated[int, Option("--threads", "-t", help="Threads amount for the scanner process.")] = 20):
+                          ports: Annotated[str, Argument(help="Ports to scan (ex: 80 / 1-1024 / 20,22,443).")] = "1-1024",
+                          timeout: Annotated[int, Option(help="Timeout for waiting a reply (seconds).")] = 1,
+                          banner: Annotated[bool, Option("--banner", "-b", help="Enable banner grabbing for open ports.")] = False,
+                          threads: Annotated[int, Option("--threads", "-t", help="Amount of threads for the scanner process.")] = 100):
     """Scan the given ports of the target address."""
-    port_scanner.portScanner(ip, ports, threads)
+    port_scanner.portScanner(ip, ports, timeout, banner, threads)
 
 
 @app.command("netscan")

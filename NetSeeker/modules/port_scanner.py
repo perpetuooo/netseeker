@@ -1,88 +1,112 @@
-import re
 import sys
-from rich import print
+import typer
+import socket
 from rich.table import Table
-from nmap import PortScanner
+from rich.panel import Panel
+from typing import List, Set
 from datetime import datetime
 from alive_progress import alive_bar
 from concurrent.futures import ThreadPoolExecutor
 
 from resources import services
+from resources import console
 
-def NmapPortScanner(target, ports, threads):
+def portScanner(target, ports, timeout, bg, threads):
 
-    def scanner(port):
+    def scan(port):
         try:
-            bar.title(f"Scanning port {port}")
-            result = nm.scan(str(target), str(port))
+            bar.title(f"\033[1;33m[i]\033[0m Scanning port {port}")
 
-            #getting ports info from the result dictionary
-            port_status = (result['scan'][target]['tcp'][port]['state'])
-            port_state = (result['scan'][target]['tcp'][port]['state'])
-            port_service = (result['scan'][target]['tcp'][port]['name'])
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            socket.setdefaulttimeout(timeout)
+            
+            result = sock.connect_ex((target, port))
 
-            if port_status == "open":
+            if result == 0:
+                port_service = socket.getservbyport(port)
+                table.add_row(str(port), "OPEN", (port_service or "NOT FOUND"))
+
+                if bg:
+                    try:
+                        banner = sock.recv(1024).decode().strip()
+                        banners[port] = banner
+
+                    except Exception:
+                        banners[port] = "NOT FOUND"
                 
-                if not port_service:
-                    port_service = "NOT FOUND"
-
-                table.add_row(str(port), port_state, port_service)
-
         except Exception as e:
-            print(f"[bold red][!] ERROR: {str(e)}[/bold red]")
+            console.print(f"[bold red][!][/bold red] ERROR: {str(e)}")
             sys.exit(1)
         
         except KeyboardInterrupt:
-            sys.exit()
+            sys.exit(1)
+
+        finally:
+            sock.close()
+
+    def parse_ports(ports: str) -> List[int]:
+        parsed_ports: Set[int] = set()  # Using set to dismiss duplicates.
+
+        for part in ports.split(","):
+            part = part.strip()
+
+            if "-" in part:
+                try:
+                    start, end = map(int, part.split("-"))
+                    parsed_ports.update(range(start, end + 1))
+
+                except ValueError:
+                    raise typer.BadParameter(f"[bold red][!][/bold red] Invalid port range: {part}")
+            
+            else:
+                try:
+                    parsed_ports.add(int(part))
+
+                except ValueError:
+                    raise typer.BadParameter(f"[bold red][!][/bold red] Invalid port: {part}")
+
+        return sorted(parsed_ports)
 
 
-    nm = PortScanner()
-    info = services.DeviceInfo()
+    def display_banners(banners):
+        for port, banner in banners.items():
+            console.print(Panel(
+                banner,
+                title=f"Port {port}",
+                padding=(1, 2),
+        ))
+
+
+    info = services.DevicesInfo()
+    parsed_ports = parse_ports(ports)
     table = Table("Port", "State", "Service")
+    banners = {}
+
     process_time = datetime.now()
-    ports_pattern = r'(\d+)[-,.;](\d+)'
 
-    if not target:
-        target = "127.0.0.1"
-
-    if not ports:
-        ports = "1-1024"
-
-
-    match = re.search(ports_pattern, ports)
-
-    #getting values from the argument string and checking if the host is up
-    if match:
-        port_range = range(int(match.group(1)), int(match.group(2)) + 1)
-
-        if info.ping(target):
-            print(f"[bold green][+][/bold green] Host {target} is [green]up[/green]!")
-        
-        else:
-            print(f"[bold red][!][/bold red] Host {target} is [red]down[/red], exiting...")
-            sys.exit() 
+    if info.ping(target):
+        console.print(f"[bold green][+][/bold green] Host [bold]{target}[/bold] is up!")
 
     else:
-        print("[bold red][!] Invalid port range, use 'start-end' or 'start,end'.[/bold red]")
-        sys.exit(1)
-   
+        console.print(f"[bold red][!][/bold red] Host [bold]{target}[/bold] is down, exiting...")
+        sys.exit()
 
-    #calling multiple threads for the scanner function
     with alive_bar(title=None, bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
         with ThreadPoolExecutor(max_workers=threads) as executor:
-            executor.map(scanner, port_range)
-        bar.title("Scan completed!")
+            executor.map(scan, parsed_ports)
 
-
-    time = int((datetime.now() - process_time).total_seconds())
-    print('\n')
+        bar.title(f"\033[1;32m[+]\033[0m Scan completed! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
 
     if table.row_count == 0:
-        print(f"[bold red][!] No open ports on {target}.[/bold red]")
+        console.print(f"[bold red][!][/bold red] No open ports on {target}.")
 
     else:
-        print(table)
-        print(f"\n[bold green][+][/bold green] Time elapsed: [green]{time}s[/green]")
+        console.print("\n[bold yellow]\\[i][/bold yellow] Open ports: ")
+        console.print(table)
+
+        if bg and banners:
+            console.print("\n[bold yellow]\\[i][/bold yellow] Banners: ")
+            display_banners(banners)
 
 
 
