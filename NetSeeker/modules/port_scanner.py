@@ -91,6 +91,7 @@ def portScanner(target, ports, timeout, bg, threads):
         console.print(f"[bold red][!][/bold red] Host [bold]{target}[/bold] is down, exiting...")
         sys.exit()
 
+    # Creating threads to the scanner function.
     with alive_bar(title=None, bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
         with ThreadPoolExecutor(max_workers=threads) as executor:
             executor.map(scan, parsed_ports)

@@ -28,8 +28,8 @@ def tracert(target: Annotated[str, Argument(help="Target IP/domain.")] = "",
 def threaded_port_scanner(ip: Annotated[str, Argument(help="Target IP/domain.")] = "127.0.0.1",
                           ports: Annotated[str, Argument(help="Ports to scan (ex: 80 / 1-1024 / 20,22,443).")] = "1-1024",
                           timeout: Annotated[int, Option(help="Timeout for waiting a reply (seconds).")] = 1,
-                          banner: Annotated[bool, Option("--banner", "-b", help="Enable banner grabbing for open ports.")] = False,
-                          threads: Annotated[int, Option("--threads", "-t", help="Amount of threads for the scanner process.")] = 100):
+                          threads: Annotated[int, Option("--threads", "-t", help="Amount of threads for the scanner process.")] = 100,
+                          banner: Annotated[bool, Option("--banner", "-b", help="Enable banner grabbing for open ports.")] = False):
     """Scan the given ports of the target address."""
     port_scanner.portScanner(ip, ports, timeout, banner, threads)
 
