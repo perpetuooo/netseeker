@@ -1,12 +1,13 @@
 import sys
 import typer
 import socket
+from threading import Event
 from rich.table import Table
 from rich.panel import Panel
 from typing import List, Set
 from datetime import datetime
 from alive_progress import alive_bar
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from resources import services
 from resources import console
@@ -14,6 +15,9 @@ from resources import console
 def portScanner(target, ports, timeout, bg, threads):
 
     def scan(port):
+        if stop.is_set():
+            return
+
         try:
             bar.title(f"\033[1;33m[i]\033[0m Scanning port {port}")
 
@@ -36,13 +40,14 @@ def portScanner(target, ports, timeout, bg, threads):
                 
         except Exception as e:
             console.print(f"[bold red][!][/bold red] ERROR: {str(e)}")
-            sys.exit(1)
+            return None
         
         except KeyboardInterrupt:
-            sys.exit(1)
+            return None
 
         finally:
             sock.close()
+
 
     def parse_ports(ports: str) -> List[int]:
         parsed_ports: Set[int] = set()  # Using set to dismiss duplicates.
@@ -78,10 +83,11 @@ def portScanner(target, ports, timeout, bg, threads):
 
 
     info = services.DevicesInfo()
-    parsed_ports = parse_ports(ports)
     table = Table("Port", "State", "Service")
+    stop = Event()
     banners = {}
 
+    # Starting the timer.
     process_time = datetime.now()
 
     if info.ping(target):
@@ -92,14 +98,40 @@ def portScanner(target, ports, timeout, bg, threads):
         sys.exit()
 
     # Creating threads to the scanner function.
-    with alive_bar(title=None, bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
-        with ThreadPoolExecutor(max_workers=threads) as executor:
-            executor.map(scan, parsed_ports)
+    try:
+        with alive_bar(title=None, bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
+            with ThreadPoolExecutor(max_workers=threads) as executor:
+                futures = {executor.submit(scan, port): port for port in parse_ports(ports)}
 
-        bar.title(f"\033[1;32m[+]\033[0m Scan completed! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
+                try:
+                    for future in as_completed(futures):
+                        if stop.is_set():  
+                            # Cancel all futures.
+                            for f in futures:
+                                if not f.done():
+                                    f.cancel()
+                            
+                            break
+                
+                except KeyboardInterrupt:
+                    stop.set()
+
+                    # Cancel all futures.
+                    for f in futures:
+                        if not f.done():
+                            f.cancel()
+
+            if stop.is_set():
+                bar.title(f"\033[1;31m[!]\033[0m Scan interrupted! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
+
+            else:
+                bar.title(f"\033[1;32m[+]\033[0m Scan completed! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
+    
+    except KeyboardInterrupt:
+        stop.set()
 
     if table.row_count == 0:
-        console.print(f"[bold red][!][/bold red] No open ports on {target}.")
+        console.print(f"\n[bold red][!][/bold red] No open ports on [bold]{target}[/bold]")
 
     else:
         console.print("\n[bold yellow]\\[i][/bold yellow] Open ports: ")
