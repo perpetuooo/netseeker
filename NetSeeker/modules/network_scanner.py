@@ -23,12 +23,13 @@ def networkScanner(target, timeout):
             # Sends the package and waits for a response.
             result = srp(packet, timeout=timeout, verbose=0)[0]
             
+            # Process each response received from the network.
             for sent, received in result:
                 if stop.is_set() or KeyboardInterrupt:
                     stop.set()
                     break
 
-                hostname = info.get_hostname(received.psrc)
+                hostname = info.get_hostname(received.psrc) # Tries to retrieve the hostname using the IP address from the response.
                 table.add_row(hostname, received.psrc, received.hwsrc)
         
         except Exception as e:
@@ -43,9 +44,9 @@ def networkScanner(target, timeout):
     table = Table("Hostname", "IP", "MAC")
     stop = Event()
 
-    # Validating target.
+    # Validate and process the target input.
     if target == 'connected network':
-        target = info.get_network()
+        target = info.get_network() # Use the current connected network if no target is specified.
         
     try:
         IPv4Network(target)
