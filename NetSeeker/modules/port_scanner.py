@@ -12,6 +12,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from resources import services
 from resources import console
 
+# TODO: Add support for UDP scanning in addition to TCP.
+
 def portScanner(target, ports, timeout, bg, threads):
 
     def scan(port):
@@ -21,18 +23,20 @@ def portScanner(target, ports, timeout, bg, threads):
         try:
             bar.title(f"\033[1;33m[i]\033[0m Scanning port {port}")
 
+            # Creating and sending a TCP socket to find out if the port is open.
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             socket.setdefaulttimeout(timeout)
             
             result = sock.connect_ex((target, port))
 
+            # If the port is open, add it to the results table.
             if result == 0:
                 port_service = socket.getservbyport(port)
                 table.add_row(str(port), "OPEN", (port_service or "NOT FOUND"))
 
-                if bg:
+                if bg:  # If banner grabbing is enabled.
                     try:
-                        banner = sock.recv(1024).decode().strip()
+                        banner = sock.recv(1024).decode().strip()   # Receive up to 1024 bytes for the banner.
                         banners[port] = banner
 
                     except Exception:
@@ -48,14 +52,13 @@ def portScanner(target, ports, timeout, bg, threads):
         finally:
             sock.close()
 
-
     def parse_ports(ports: str) -> List[int]:
-        parsed_ports: Set[int] = set()  # Using set to dismiss duplicates.
+        parsed_ports: Set[int] = set()  # Using set to dismiss duplicate ports.
 
         for part in ports.split(","):
             part = part.strip()
 
-            if "-" in part:
+            if "-" in part: # Handle port ranges (e.g., "1-1024").
                 try:
                     start, end = map(int, part.split("-"))
                     parsed_ports.update(range(start, end + 1))
@@ -63,7 +66,7 @@ def portScanner(target, ports, timeout, bg, threads):
                 except ValueError:
                     raise typer.BadParameter(f"[bold red][!][/bold red] Invalid port range: {part}")
             
-            else:
+            else:   # Handle single ports.
                 try:
                     parsed_ports.add(int(part))
 
@@ -87,9 +90,7 @@ def portScanner(target, ports, timeout, bg, threads):
     stop = Event()
     banners = {}
 
-    # Starting the timer.
-    process_time = datetime.now()
-
+    # Check if the target is reachable by sending him a ICMP echo request.
     if info.ping(target):
         console.print(f"[bold green][+][/bold green] Host [bold]{target}[/bold] is up!")
 
@@ -97,7 +98,9 @@ def portScanner(target, ports, timeout, bg, threads):
         console.print(f"[bold red][!][/bold red] Host [bold]{target}[/bold] is down, exiting...")
         sys.exit()
 
-    # Creating threads to the scanner function.
+    process_time = datetime.now()
+
+    # Using ThreadPoolExecutor to scan multiple ports concurrently, improving performance.
     try:
         with alive_bar(title=None, bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
             with ThreadPoolExecutor(max_workers=threads) as executor:
@@ -134,7 +137,7 @@ def portScanner(target, ports, timeout, bg, threads):
         console.print(f"\n[bold red][!][/bold red] No open ports on [bold]{target}[/bold]")
 
     else:
-        console.print("\n[bold yellow]\\[i][/bold yellow] Open ports: ")
+        console.print(f"\n[bold yellow]\\[i][/bold yellow] Found {table.row_count} open ports: ")
         console.print(table)
 
         if bg and banners:
