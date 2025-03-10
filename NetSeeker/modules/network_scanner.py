@@ -1,5 +1,6 @@
 import sys
 import socket
+from threading import Event
 from rich.table import Table
 from datetime import datetime
 from alive_progress import alive_bar
@@ -23,25 +24,24 @@ def networkScanner(target, timeout):
             result = srp(packet, timeout=timeout, verbose=0)[0]
             
             for sent, received in result:
-                hostname = get_hostname(received.psrc)
+                if stop.is_set() or KeyboardInterrupt:
+                    stop.set()
+                    break
+
+                hostname = info.get_hostname(received.psrc)
                 table.add_row(hostname, received.psrc, received.hwsrc)
         
+        except Exception as e:
+            console.print(f"[bold red][!][/bold red] ERROR: {str(e)}")
+            return None
+
         except KeyboardInterrupt:
-            bar.title(f"\033[1;31m[!]\033[0m Scan interrupted! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
-            return
-
-
-    def get_hostname(ip):
-        try:
-            hostname = socket.gethostbyaddr(ip)[0]
-            return hostname
-            
-        except socket.error:
-            return 'NOT FOUND'
+            stop.set()
 
 
     info = services.DevicesInfo()
     table = Table("Hostname", "IP", "MAC")
+    stop = Event()
 
     # Validating target.
     if target == 'connected network':
@@ -56,10 +56,19 @@ def networkScanner(target, timeout):
     
     process_time = datetime.now()
 
-    with alive_bar(title=f"\033[1;33m[i]\033[0m Scanning network...", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
-        scan(target)
+    try:
+        with alive_bar(title=f"\033[1;33m[i]\033[0m Scanning network...", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
+            scan(target)
 
-        bar.title(f"\033[1;32m[+]\033[0m Scan completed! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
+            if stop.is_set():
+                bar.title(f"\033[1;31m[!]\033[0m Scan interrupted! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
+            
+            else:
+                bar.title(f"\033[1;32m[+]\033[0m Scan completed! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
+
+
+    except KeyboardInterrupt:
+        stop.set()
 
     if table.row_count == 0:
         console.print(f"\n[bold red][!][/bold red] No hosts found on [bold]{target}[/bold] network.")

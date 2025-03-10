@@ -1,4 +1,5 @@
 import ipaddress
+import socket
 import scapy.all as scapy
 import netifaces
 
@@ -44,6 +45,15 @@ class DevicesInfo:
         mask = addr['netmask']
 
         return ipaddress.IPv4Network(f"{ip}/{mask}", strict=False)
+
+    
+    def get_hostname(self, ip):
+        try:
+            hostname = socket.gethostbyaddr(ip)[0]
+            return hostname
+            
+        except socket.error:
+            return 'NOT FOUND'
 
 
     # Checks if the given IP address is a valid public IPv4 address.
