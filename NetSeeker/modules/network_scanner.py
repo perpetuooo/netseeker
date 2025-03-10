@@ -1,81 +1,72 @@
 import sys
 import socket
-from rich import print
 from rich.table import Table
-from nmap import PortScanner
 from datetime import datetime
 from alive_progress import alive_bar
+from scapy.all import ARP, Ether, srp
+from ipaddress import IPv4Address, IPv4Network
 
+from resources import console
 from resources import services
 
-def NmapNetScanner(target, timing):
 
-    def scanner():
+def networkScanner(target, timeout):
+    
+    def scan(target):
         try:
-            result = nm.scan(target, arguments=f"-sn -T{timing}", timeout=3000)
+            # Creates an ARP package to discover hosts.
+            arp = ARP(pdst=str(target))
+            ether = Ether(dst="ff:ff:ff:ff:ff:ff")
+            packet = ether/arp
 
-            #searching info from the result dictionary
-            for host in result['scan'].values():
-                host_list.append(host)
-
-                try:
-                    ipv4_address = (host['addresses']['ipv4'])
-
-                except:
-                    ipv4_address = "NOT FOUND"
-                
-                if len(host['addresses']) == 1:
-                    try:
-                        mac_address = info.get_mac(str(ipv4_address))
-                    
-                    except:
-                        mac_address = "NOT FOUND"
-                
-                else:
-                    mac_address = (host['addresses']['mac'])
-
-                if len(host['vendor']) == 1:
-                    hostname = (host['vendor'][mac_address])
-                
-                else:
-                    try:
-                        hostname = socket.gethostbyaddr(ipv4_address)[0]
-                    
-                    except socket.error:
-                        hostname = "NOT FOUND"
-                
-                table.add_row(hostname, ipv4_address, mac_address)
-
-        except KeyboardInterrupt:
-            sys.exit()
+            # Sends the package and waits for a response.
+            result = srp(packet, timeout=timeout, verbose=0)[0]
             
-        except Exception as e:
-            print(f"[bold red][!]ERROR: {str(e)}[/bold red]")
-            sys.exit(1)
+            for sent, received in result:
+                hostname = get_hostname(received.psrc)
+                table.add_row(hostname, received.psrc, received.hwsrc)
+        
+        except KeyboardInterrupt:
+            bar.title(f"\033[1;31m[!]\033[0m Scan interrupted! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
+            return
 
 
-    nm = PortScanner()
-    info = services.DeviceInfo()
-    host_list = []
+    def get_hostname(ip):
+        try:
+            hostname = socket.gethostbyaddr(ip)[0]
+            return hostname
+            
+        except socket.error:
+            return 'NOT FOUND'
+
+
+    info = services.DevicesInfo()
     table = Table("Hostname", "IP", "MAC")
-    process_time = datetime.now()
-    
-    
-    #starting scanner
-    with alive_bar(title=f"Scanning devices through {target} network", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
-        scanner()
-        bar.title("Done!")
 
-    time = int((datetime.now() - process_time).total_seconds())
-    print('\n')
+    # Validating target.
+    if target == 'connected network':
+        target = info.get_network()
+        
+    try:
+        IPv4Network(target)
+
+    except ValueError:
+        console.print(f"[bold red][!][/bold red] Invalid target: {target}")
+        sys.exit(1)
     
+    process_time = datetime.now()
+
+    with alive_bar(title=f"\033[1;33m[i]\033[0m Scanning network...", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
+        scan(target)
+
+        bar.title(f"\033[1;32m[+]\033[0m Scan completed! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
+
     if table.row_count == 0:
-        print(f"[bold red][!] No hosts found.[/bold red]")
-    
+        console.print(f"\n[bold red][!][/bold red] No hosts found on [bold]{target}[/bold] network.")
+
     else:
-        print(f"[bold green][+][/bold green] [green]{len(host_list)}[/green] devices found.")
-        print(table)
-        print(f"\n[bold green][+][/bold green] Time elapsed: [green]{time}s[/green]")
+        console.print(f"\n[bold yellow]\\[i][/bold yellow] Found {table.row_count} hosts: ")
+        console.print(table)
 
 
 
