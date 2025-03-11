@@ -1,17 +1,22 @@
 import sys
-import socket
 from threading import Event
 from rich.table import Table
 from datetime import datetime
 from alive_progress import alive_bar
 from scapy.all import ARP, Ether, srp
-from ipaddress import IPv4Address, IPv4Network
+from ipaddress import IPv4Network
 
 from resources import console
 from resources import services
 
+"""
+TODO: 
+- Add support to IPv6 
+- OS fingerprinting
+- Detect devices types based on their MACs (OUI)
+"""
 
-def networkScanner(target, timeout):
+def networkScanner(target, timeout, threads):
     
     def scan(target):
         try:
@@ -25,7 +30,7 @@ def networkScanner(target, timeout):
             
             # Process each response received from the network.
             for sent, received in result:
-                if stop.is_set() or KeyboardInterrupt:
+                if stop.is_set():
                     stop.set()
                     break
 
@@ -38,6 +43,7 @@ def networkScanner(target, timeout):
 
         except KeyboardInterrupt:
             stop.set()
+            return None
 
 
     info = services.DevicesInfo()

@@ -30,7 +30,6 @@ class DevicesInfo:
     # Retrieves the default gateway IP address for the current network.
     def get_default_gateway(self):
         gw = scapy.conf.route.route("0.0.0.0")[2]
-
         return gw
 
 
@@ -46,11 +45,11 @@ class DevicesInfo:
 
         return ipaddress.IPv4Network(f"{ip}/{mask}", strict=False)
 
-    
+
+    # Tries to find the target hostname by reverse DNS lookup.
     def get_hostname(self, ip):
         try:
-            hostname = socket.gethostbyaddr(ip)[0]
-            return hostname
+            return socket.gethostbyaddr(ip)[0]
             
         except socket.error:
             return 'NOT FOUND'

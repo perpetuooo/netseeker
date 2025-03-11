@@ -12,7 +12,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from resources import services
 from resources import console
 
-# TODO: Add support for UDP scanning in addition to TCP.
+"""
+TODO: 
+- Add support for UDP scanning in addition to TCP
+- Add support to IPv6
+- Implement a better banner grabbing technique
+- Create a stealth scan alternative
+"""
 
 def portScanner(target, ports, timeout, bg, threads):
 
