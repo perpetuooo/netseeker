@@ -1,6 +1,5 @@
 from typer import Typer, Argument, Option
 from typing_extensions import Annotated
-from rich.console import Console
 
 from modules import port_scanner
 from modules import network_scanner
@@ -17,20 +16,21 @@ def get_info():
 
 
 @app.command("portscan")
-def threaded_port_scanner(target: Annotated[str, Argument(help="Target IP/domain.")] = "127.0.0.1",
+def parallel_port_scanner(target: Annotated[str, Argument(help="Target IP/domain.")] = "127.0.0.1",
                           ports: Annotated[str, Argument(help="Ports to scan (ex: 80 / 1-65535 / 20,22,443).")] = "1-1024",
                           timeout: Annotated[int, Option("--timeout", "-to", help="Timeout for waiting a reply (seconds).")] = 1,
-                          threads: Annotated[int, Option("--threads", "-t", help="Amount of threads for the scanner process.")] = 100,
+                          threads: Annotated[int, Option("--threads", "-t", help="Max. amount of threads for the scanner process.")] = 100,
                           banner: Annotated[bool, Option("--banner", "-b", help="Enable banner grabbing for open ports.")] = False):
     """Scan for open ports on the target address."""
-    port_scanner.portScanner(target, ports, timeout, banner, threads)
+    port_scanner.portScanner(target, ports, timeout, threads, banner)
 
 
 @app.command("netscan")
-def host_discovery(target: Annotated[str, Argument(help="Target network.")] = "connected network",
-                   timeout: Annotated[int, Option(help="Timeout for waiting a reply (seconds).")] = 3,):
-    """Discover all hosts on the local network."""
-    network_scanner.networkScanner(target, timeout)
+def parallel_network_scanner(target: Annotated[str, Argument(help="Target network.")] = "connected network",
+                             timeout: Annotated[int, Option("--timeout", "-to", help="Timeout for waiting a reply (seconds).")] = 5,
+                             threads: Annotated[int, Option("--threads", "-t", help="Max. amount of threads for the scanner process.")] = 100):
+    """Discover all hosts on the target network."""
+    network_scanner.networkScanner(target, timeout, threads)
 
 
 @app.command("traceroute")

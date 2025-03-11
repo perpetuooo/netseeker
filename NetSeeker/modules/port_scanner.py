@@ -1,6 +1,7 @@
 import sys
 import typer
 import socket
+import queue
 from threading import Event
 from rich.table import Table
 from rich.panel import Panel
@@ -20,7 +21,7 @@ TODO:
 - Create a stealth scan alternative
 """
 
-def portScanner(target, ports, timeout, bg, threads):
+def portScanner(target, ports, timeout, threads, bg):
 
     def scan(port):
         if stop.is_set():
@@ -50,9 +51,11 @@ def portScanner(target, ports, timeout, bg, threads):
                 
         except Exception as e:
             console.print(f"[bold red][!][/bold red] ERROR: {str(e)}")
+            sock.close()
             return None
         
         except KeyboardInterrupt:
+            sock.close()
             return None
 
         finally:
@@ -107,15 +110,15 @@ def portScanner(target, ports, timeout, bg, threads):
     process_time = datetime.now()
 
     # Using ThreadPoolExecutor to scan multiple ports concurrently, improving performance.
-    try:
-        with alive_bar(title=None, bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
+    with alive_bar(title=None, bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
+        try:
             with ThreadPoolExecutor(max_workers=threads) as executor:
                 futures = {executor.submit(scan, port): port for port in parse_ports(ports)}
 
                 try:
                     for future in as_completed(futures):
                         if stop.is_set():  
-                            # Cancel all futures.
+                            # Cancel all pending futures.
                             for f in futures:
                                 if not f.done():
                                     f.cancel()
@@ -125,19 +128,14 @@ def portScanner(target, ports, timeout, bg, threads):
                 except KeyboardInterrupt:
                     stop.set()
 
-                    # Cancel all futures.
-                    for f in futures:
-                        if not f.done():
-                            f.cancel()
+        except KeyboardInterrupt:
+            stop.set()
 
-            if stop.is_set():
-                bar.title(f"\033[1;31m[!]\033[0m Scan interrupted! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
+        if stop.is_set():
+            bar.title(f"\033[1;31m[!]\033[0m Scan interrupted! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
 
-            else:
-                bar.title(f"\033[1;32m[+]\033[0m Scan completed! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
-    
-    except KeyboardInterrupt:
-        stop.set()
+        else:
+            bar.title(f"\033[1;32m[+]\033[0m Scan completed! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
 
     if table.row_count == 0:
         console.print(f"\n[bold red][!][/bold red] No open ports on [bold]{target}[/bold]")

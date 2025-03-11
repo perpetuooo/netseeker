@@ -5,6 +5,7 @@ from datetime import datetime
 from alive_progress import alive_bar
 from scapy.all import ARP, Ether, srp
 from ipaddress import IPv4Network
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from resources import console
 from resources import services
@@ -18,10 +19,13 @@ TODO:
 
 def networkScanner(target, timeout, threads):
     
-    def scan(target):
+    def scan(host):
+        if stop.is_set():
+            return
+
         try:
             # Creates an ARP package to discover hosts.
-            arp = ARP(pdst=str(target))
+            arp = ARP(pdst=str(host))
             ether = Ether(dst="ff:ff:ff:ff:ff:ff")
             packet = ether/arp
 
@@ -31,7 +35,6 @@ def networkScanner(target, timeout, threads):
             # Process each response received from the network.
             for sent, received in result:
                 if stop.is_set():
-                    stop.set()
                     break
 
                 hostname = info.get_hostname(received.psrc) # Tries to retrieve the hostname using the IP address from the response.
@@ -39,11 +42,11 @@ def networkScanner(target, timeout, threads):
         
         except Exception as e:
             console.print(f"[bold red][!][/bold red] ERROR: {str(e)}")
-            return None
+            sys.exit(1)
 
         except KeyboardInterrupt:
-            stop.set()
-            return None
+            stop.set()  
+            return
 
 
     info = services.DevicesInfo()
@@ -51,11 +54,11 @@ def networkScanner(target, timeout, threads):
     stop = Event()
 
     # Validate and process the target input.
-    if target == 'connected network':
-        target = info.get_network() # Use the current connected network if no target is specified.
-        
     try:
-        IPv4Network(target)
+        if target == 'connected network':
+            target = info.get_network() # Use the current connected network if no target is specified.
+
+        network = IPv4Network(target)
 
     except ValueError:
         console.print(f"[bold red][!][/bold red] Invalid target: {target}")
@@ -63,19 +66,31 @@ def networkScanner(target, timeout, threads):
     
     process_time = datetime.now()
 
-    try:
-        with alive_bar(title=f"\033[1;33m[i]\033[0m Scanning network...", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
-            scan(target)
+    # Using ThreadPoolExecutor to scan multiple hosts concurrently, improving performance.
+    with alive_bar(title=f"\033[1;33m[i]\033[0m Scanning network...", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
+        # Create a list of all hosts in the network
+        hosts = [str(ip) for ip in network.hosts()]
+        try:
+            with ThreadPoolExecutor(max_workers=threads) as executor:
+                futures = {executor.submit(scan, host): host for host in hosts}
 
-            if stop.is_set():
-                bar.title(f"\033[1;31m[!]\033[0m Scan interrupted! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
+                for future in as_completed(futures):
+                    if stop.is_set():  
+                        # Cancel all pending futures.
+                        for f in futures:
+                            if not f.done():
+                                f.cancel()
+                        
+                        break
             
-            else:
-                bar.title(f"\033[1;32m[+]\033[0m Scan completed! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
-
-
-    except KeyboardInterrupt:
-        stop.set()
+        except KeyboardInterrupt:
+            stop.set()
+        
+        if stop.is_set():
+            bar.title(f"\033[1;31m[!]\033[0m Scan interrupted! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
+        
+        else:
+            bar.title(f"\033[1;32m[+]\033[0m Scan completed! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
 
     if table.row_count == 0:
         console.print(f"\n[bold red][!][/bold red] No hosts found on [bold]{target}[/bold] network.")
