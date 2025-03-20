@@ -1,7 +1,7 @@
 import sys
+import time
 from threading import Event
 from rich.table import Table
-from datetime import datetime
 from alive_progress import alive_bar
 from scapy.all import ARP, Ether, srp
 from ipaddress import IPv4Network
@@ -64,10 +64,10 @@ def networkScanner(target, timeout, threads):
         console.print(f"[bold red][!][/bold red] Invalid target: {target}")
         sys.exit(1)
     
-    process_time = datetime.now()
+    process_time = time.perf_counter()
 
     # Using ThreadPoolExecutor to scan multiple hosts concurrently, improving performance.
-    with alive_bar(title=f"\033[1;33m[i]\033[0m Scanning network...", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
+    with alive_bar(title=f"\033[1;33m[i]\033[0m Scanning network {target}", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
         # Create a list of all hosts in the network
         hosts = [str(ip) for ip in network.hosts()]
         try:
@@ -87,10 +87,10 @@ def networkScanner(target, timeout, threads):
             stop.set()
         
         if stop.is_set():
-            bar.title(f"\033[1;31m[!]\033[0m Scan interrupted! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
+            bar.title(f"\033[1;31m[!]\033[0m Scan interrupted! Time elapsed: {time.perf_counter() - process_time}s\n")
         
         else:
-            bar.title(f"\033[1;32m[+]\033[0m Scan completed! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
+            bar.title(f"\033[1;32m[+]\033[0m Scan completed! Time elapsed: {time.perf_counter() - process_time}s\n")
 
     if table.row_count == 0:
         console.print(f"\n[bold red][!][/bold red] No hosts found on [bold]{target}[/bold] network.")

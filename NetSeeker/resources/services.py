@@ -1,5 +1,6 @@
 import ipaddress
 import socket
+import requests
 import scapy.all as scapy
 import netifaces
 
@@ -44,6 +45,14 @@ class DevicesInfo:
         mask = addr['netmask']
 
         return ipaddress.IPv4Network(f"{ip}/{mask}", strict=False)
+    
+
+    # Gets location info from an IP address.
+    def get_location(self, target):
+        if target.endswith(".com"):
+            target = socket.gethostbyname(target)
+
+        return requests.get(f'https://ipapi.co/{target}/json/').json()
 
 
     # Tries to find the target hostname by reverse DNS lookup.

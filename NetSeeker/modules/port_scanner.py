@@ -1,12 +1,11 @@
 import sys
+import time
 import typer
 import socket
-import queue
 from threading import Event
 from rich.table import Table
 from rich.panel import Panel
 from typing import List, Set
-from datetime import datetime
 from alive_progress import alive_bar
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -107,7 +106,7 @@ def portScanner(target, ports, timeout, threads, bg):
         console.print(f"[bold red][!][/bold red] Host [bold]{target}[/bold] is down, exiting...")
         sys.exit()
 
-    process_time = datetime.now()
+    process_time = time.perf_counter()
 
     # Using ThreadPoolExecutor to scan multiple ports concurrently, improving performance.
     with alive_bar(title=None, bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
@@ -132,10 +131,10 @@ def portScanner(target, ports, timeout, threads, bg):
             stop.set()
 
         if stop.is_set():
-            bar.title(f"\033[1;31m[!]\033[0m Scan interrupted! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
+            bar.title(f"\033[1;31m[!]\033[0m Scan interrupted! Time elapsed: {time.perf_counter() - process_time}s\n")
 
         else:
-            bar.title(f"\033[1;32m[+]\033[0m Scan completed! Time elapsed: {int((datetime.now() - process_time).total_seconds())}s\n")
+            bar.title(f"\033[1;32m[+]\033[0m Scan completed! Time elapsed: {time.perf_counter() - process_time}s\n")
 
     if table.row_count == 0:
         console.print(f"\n[bold red][!][/bold red] No open ports on [bold]{target}[/bold]")
