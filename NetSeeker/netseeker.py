@@ -3,14 +3,14 @@ from typing_extensions import Annotated
 
 from modules import port_scanner
 from modules import network_scanner
-# from modules import traceroute
+from modules import traceroute
 # from modules import arp_spoofer
 
 app = Typer(rich_markup_mode="rich")
 
 
 @app.command("info")
-def get_info():
+def info():
     """Info about the project."""
     pass
 
@@ -35,10 +35,11 @@ def parallel_network_scanner(target: Annotated[str, Argument(help="Target networ
 
 @app.command("traceroute")
 def tracert(target: Annotated[str, Argument(help="Target IP/domain.")] = "",
-            timeout: Annotated[int, Option("--timeout", "-t", help="Timeout for receiving packets (seconds).")] = 5,
-            result_map: Annotated[bool, Option("--map", "-m", help="Create a map with the info provided.")] = False):
-    """Trace the path of IP packets."""
-    # traceroute.TracerouteWithMap(target, timeout, result_map)
+            timeout: Annotated[int, Option("--timeout", "-t", help="Timeout for receiving packets (seconds).")] = 3,
+            max_hops: Annotated[int, Option("--hops", "-h", help="Max. amount of hops.")] = 30,
+            gen_map: Annotated[bool, Option("--map", "-m", help="Receive results in a dynamic map.")] = True):
+    """Trace the path of your packets with a map."""
+    traceroute.tracerouteWithMap(target, timeout, max_hops, gen_map)
 
 
 @app.command("arpspoofer")

@@ -1,120 +1,78 @@
-import re
 import sys
+import time
 import socket
-import folium
-import requests
-import platform
-import subprocess
-from rich import print
-from datetime import datetime
+from scapy.all import IP, UDP, ICMP, sr1
 from alive_progress import alive_bar
 
 from resources import services
+from resources import console
 
 """
-----  TO DO:  ----
-create a map with the info provided;
-implement timeout (-w) in the command;
+TODO:
+- Add IPv6 support
 """
 
-def TracerouteWithMap(target, timeout, gen_map):
+def tracerouteWithMap(target, timeout, max_hops, gen_map):
+    target_name = target
+    dest_reached = False
+    info = services.DevicesInfo()
+    results = {}
+    
+    # Get IP if the target is a domain.
+    try:
+        if target.endswith(".com"):
+            target = socket.gethostbyname(target)
+            target_name = f"{target_name} ({target})"
 
-    # Location info from an IP address.
-    def get_location(ip):
-        if ip.endswith(".com"):
-            ip = socket.gethostbyname(ip)
-
-        response = requests.get(f'https://ipapi.co/{ip}/json/').json()
-        location_data = {
-        "city": response.get("city"),
-        "country": response.get("country_name"),
-        "lat": response.get("latitude"),
-        "long": response.get("longitude")}
-
-        return location_data
-
-
-    if platform.system() == "Windows":
-        command = "tracert"
-
-    elif platform.system() == "Linux" or platform.system() == "Darwin":
-        command = "traceroute"
-
-    else:
-        print(f"[bold red][!] Invalid OS.[/bold red]")
+    except socket.gaierror:
+        console.print("ERROR: Invalid hostname.")
         sys.exit(1)
 
-    info = services.DeviceInfo()
-    ip_pattern = r'(\d+\.\d+\.\d+\.\d+)'
-    process_time = datetime.now()
-    ip_list = []
-    location_list = []
-    skip = True
+    process_time = time.perf_counter()
 
-    #getting the users public ip address and appending it to the ip list
-    ip_list.append(str(requests.get('https://api.ipify.org').text))
+    with alive_bar(title=f"Tracerouting to {target_name}", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
+        try:
+            # Increase TTL for each hop.
+            for ttl in range(1, max_hops + 1):
+                if dest_reached:
+                    return
 
-
-    #running the traceroute command
-    with alive_bar(title=f"Tracerouting to {target}", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
-        result = subprocess.run([command, target], stdout=subprocess.PIPE, text=True, universal_newlines=True)
-
-        bar.title("Parsing results")
-        filtred_result = result.stdout.splitlines()
-
-        #finding all ipv4 addresses in the filtred result
-        for line in filtred_result:
-            match = re.findall(ip_pattern, line)
-
-            if match:
-                #skiping the first match because the regex also gets the destination address from the top of the result
-                if skip:
-                    skip = False
-                    continue
-
-                ip_list.extend(match)
-        
-        for ip in ip_list:
-            loc = get_location(ip)
-            location_list.append(loc)
-
-
-        if gen_map:
-            bar.title("Generating map")
-            prev = None
-            m = folium.Map()
-
-            for ip, location in zip(ip_list, location_list):
-                if ip == prev or info.check_ipv4(ip) == "private":
-                    continue
-            
-                lat = location['lat']
-                long = location['long']
-                city = location['city']
-                country = location['country']
+                hop_info = {
+                    'ip': None,
+                    'rtt': [],
+                    'hostname': None,
+                }
                 
-                folium.Marker(
-                    location=[lat, long],
-                    tooltip=str(ip),
-                    popup=f"{city}, {country}",
-                    icon=folium.Icon(icon="green"),
-                ).add_to(m)
+                # Sends 3 packets per hop (as default in traceroutes).
+                for attempt in range(3):
+                    start_time = time.perf_counter()
 
-                prev = ip
+                    # Create a empty UDP packet and sending it to the destination address.
+                    pkt = IP(dst=target, ttl=ttl) / UDP(dport=33434 + ttl)    # Send each packet to a unique port.
+                    reply = sr1(pkt, timeout=timeout, verbose=False)
+
+                    # Calculate RTT.
+                    rtt = (time.perf_counter() - start_time) * 1000  # Convert to ms.
+
+                    if reply:
+                        hop_info['ip'] = reply.src  # Router IP.
+                        hop_info['rtt'].append(round(rtt, 2))
+                        hop_info['hostname'] = info.get_hostname(reply.src) if reply.src is not None else None
+
+                        # Check if the packet reached the destination.
+                        if reply.haslayer(ICMP):
+                            if reply[ICMP].type == 3 and reply[ICMP].code == 3:   # Destination unreachable (port unreachable).
+                                results[ttl] = hop_info
+
+                                dest_reached = True
+                    
+                    time.sleep(0.1)
+                
+                results[ttl] = hop_info
             
-            m.save("index.html")
-
-        bar.title("Traceroute complete!")
-    
-
-    print('\n')
-
-    for ip, location in zip(ip_list, location_list):
-        print(f"[bold green][+][/bold green] [white]{ip}[/white] - {location}")
-
-
-    time = int((datetime.now() - process_time).total_seconds())
-    print(f"\n[bold green][+][/bold green] Time elapsed: [green]{time}s[/green]")
+        finally:
+            bar.title("Traceroute complete!")
+            console.print(results)
 
 
 
