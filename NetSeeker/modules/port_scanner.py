@@ -131,10 +131,10 @@ def portScanner(target, ports, timeout, threads, bg):
             stop.set()
 
         if stop.is_set():
-            bar.title(f"\033[1;31m[!]\033[0m Scan interrupted! Time elapsed: {time.perf_counter() - process_time}s\n")
+            bar.title(f"\033[1;31m[!]\033[0m Scan interrupted! Time elapsed: {int(time.perf_counter() - process_time)}s\n")
 
         else:
-            bar.title(f"\033[1;32m[+]\033[0m Scan completed! Time elapsed: {time.perf_counter() - process_time}s\n")
+            bar.title(f"\033[1;32m[+]\033[0m Scan completed! Time elapsed: {int(time.perf_counter() - process_time)}s\n")
 
     if table.row_count == 0:
         console.print(f"\n[bold red][!][/bold red] No open ports on [bold]{target}[/bold]")
