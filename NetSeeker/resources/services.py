@@ -48,11 +48,20 @@ class DevicesInfo:
     
 
     # Gets location info from an IP address.
-    def get_location(self, target):
-        if target.endswith(".com"):
-            target = socket.gethostbyname(target)
+    def get_geolocation(self, target = None):
+        if not target:
+            result = requests.get('http://ip-api.com/json?fields=20705279')
 
-        return requests.get(f'https://ipapi.co/{target}/json/').json()
+        else:
+            if target.endswith(".com"):
+                target = socket.gethostbyname(target)
+
+            result = requests.get(f'http://ip-api.com/json/{target}?fields=20705279')
+        
+        if result.status_code == 429:   # Too many requests, need to do something with this later...
+            return None
+
+        return result.json()
 
 
     # Tries to find the target hostname by reverse DNS lookup.
