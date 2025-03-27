@@ -1,6 +1,8 @@
 import sys
 import time
+import typer
 import socket
+import folium
 from scapy.all import IP, UDP, ICMP, sr1
 from alive_progress import alive_bar
 
@@ -14,6 +16,80 @@ TODO:
 """
 
 def tracerouteWithMap(target, timeout, max_hops, gen_map):
+
+    def create_map():
+        m = folium.Map(world_copy_jump=True)
+        locations = []
+
+        # Add your own location first (starting point).
+        host = info.get_geolocation()
+        if host and host['status'] == 'success':
+            locations.append([host['lat'], host['lon']])
+
+            folium.Marker(
+                location=[host['lat'], host['lon']],
+                tooltip=f"{host['query']} (you)",
+                popup=f"{host['city']}, {host['country']}",
+                icon=folium.Icon(color='green', icon='info-circle', prefix='fa')
+            ).add_to(m)
+
+        # Process each hop in order.
+        for ttl in sorted(results.keys()):
+            hop = results[ttl]
+
+            if hop['ip'] and not hop['is_private'] and hop['location']['status'] == 'success':
+                hop_location = [hop['location']['lat'], hop['location']['lon']]
+                locations.append(hop_location)
+
+                console.print(f"hop {ttl}")
+
+                popup_text = f"""
+                <b>Hop #</b>: {ttl}<br>
+                <b>IP</b>: {hop['ip']}<br>
+                <b>Hostname</b>: {hop['hostname']}<br>
+                <b>Location</b>: {hop['location']['city']}, {hop['location']['country']}<br>
+                <b>RTT</b>: {", ".join(hop['rtt'])}<br>
+                <b>ISP</b>: {hop['location']['isp']}<br>
+                <b>Organization</b>: {hop['location']['org']}<br>
+                """
+
+                # Check if is the target.
+                if hop['ip'] == target:
+                    folium.Marker(
+                        location=hop_location,
+                        tooltip=f"Target: {hop['ip']}",
+                        popup=folium.Popup(popup_text, max_width=200),
+                        icon=folium.Icon(color='red', icon='bullseye', prefix='fa')
+                    ).add_to(m)
+                    break
+
+                # Regular hop marker.
+                folium.Marker(
+                    location=hop_location,
+                    tooltip=f"Hop {ttl}: {hop['ip']}",
+                    popup=folium.Popup(popup_text, max_width=200),
+                    icon=folium.Icon(color='blue', icon='server', prefix='fa')
+                ).add_to(m)
+
+        # Draw the connecting line.
+        if len(locations) > 1:
+            folium.PolyLine(
+                locations=locations,
+                color='purple',
+                weight=3,
+                opacity=0.7,
+                dash_array='5,5'
+            ).add_to(m)
+
+        # Adjust map to fit all markers.
+        # if locations:
+        #     m.fit_bounds([locations[0], locations[-1]])
+
+        console.print(locations)
+
+        m.save('traceroute_map.html')
+
+
     target_name = target
     dest_reached = False
     info = services.DevicesInfo()
@@ -26,7 +102,7 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map):
             target_name = f"{target_name} ({target})"
 
     except socket.gaierror:
-        console.print(f"[bold red][!][/bold red] Invalid hostname: {target_name}.")
+        raise typer.BadParameter(f"[bold red][!][/bold red] Invalid hostname: {target_name}.")
         sys.exit(1)
 
     process_time = time.perf_counter()
@@ -41,6 +117,8 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map):
                 'ip': None,
                 'rtt': [],
                 'hostname': None,
+                'is_private': None,
+                'location': None,
             }
             
             # Sends 3 packets per hop (as default in traceroutes).
@@ -56,8 +134,18 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map):
 
                 if reply:
                     hop_info['ip'] = reply.src  # Router IP.
-                    hop_info['rtt'].append(round(rtt, 2))
-                    hop_info['hostname'] = info.get_hostname(reply.src) if reply.src is not None else None
+                    hop_info['rtt'].append(f"{round(rtt)}ms")
+
+                    # Results depends if there is an IP and if it is public.
+                    if reply.src is not None and info.check_ipv4(reply.src) is True:
+                        hop_info['hostname'] = info.get_hostname(reply.src)
+                        hop_info['is_private'] = False
+                        hop_info['location'] = info.get_geolocation(reply.src)
+                    
+                    else:
+                        hop_info['hostname'] = None
+                        hop_info['is_private'] = True
+                        hop_info['location'] = None
 
                     # Check if the packet reached the destination.
                     if reply.haslayer(ICMP):
@@ -71,8 +159,12 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map):
                 results[ttl] = hop_info
             else:
                 results[ttl] = {"ip": None, "rtt": ['*', '*', '*'], "hostname": "Request timed out"}
-        
-        bar.title("\033[1;32m[+]\033[0m Traceroute complete!")
+
+        if gen_map:
+            bar.title("\033[1;33m[i]\033[0m Generating map")
+            create_map()
+
+        bar.title(f"\033[1;32m[+]\033[0m Traceroute complete! Time elapsed: {int(time.perf_counter() - process_time)}s \n")
 
     console.print(results)
 
