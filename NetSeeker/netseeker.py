@@ -37,9 +37,10 @@ def app_network_scanner(target: Annotated[str, Argument(help="Target network.")]
 def app_traceroute(target: Annotated[str, Argument(help="Target IP/domain.")] = "",
                 timeout: Annotated[int, Option("--timeout", "-t", help="Timeout for receiving packets (seconds).")] = 3,
                 max_hops: Annotated[int, Option("--hops", "-h", help="Max. amount of hops.")] = 30,
-                gen_map: Annotated[bool, Option("--map", "-m", help="Receive results in a dynamic map.")] = True):
+                gen_map: Annotated[bool, Option("--map", "-m", help="Receive results in a dynamic map.")] = True,
+                save_file: Annotated[bool, Option("--save", "-s", help="Save map in an HTML file.")] = False):
     """Trace the path of your packets with a map."""
-    traceroute.tracerouteWithMap(target, timeout, max_hops, gen_map)
+    traceroute.tracerouteWithMap(target, timeout, max_hops, gen_map, save_file)
 
 
 @app.command("arpspoofer")

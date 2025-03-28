@@ -1,8 +1,11 @@
+import os
 import sys
 import time
 import typer
 import socket
 import folium
+import tempfile
+import webbrowser
 from scapy.all import IP, UDP, ICMP, sr1
 from alive_progress import alive_bar
 
@@ -15,9 +18,10 @@ TODO:
 - Create a map with the result info
 """
 
-def tracerouteWithMap(target, timeout, max_hops, gen_map):
+def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
 
     def create_map():
+        bar.title("\033[1;33m[i]\033[0m Generating map")
         m = folium.Map(world_copy_jump=True)
         locations = []
 
@@ -87,7 +91,17 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map):
 
         console.print(locations)
 
-        m.save('traceroute_map.html')
+        if save_file:
+            desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+            filepath = os.path.join(desktop_path, f"traceroute-{target_name}_{time.strftime("%d-%m-%Y_%H-%M-%S",time.localtime())}.html")
+
+            m.save(filepath)
+            webbrowser.open(f"file://{filepath}")
+        
+        else:
+            with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+                m.save(f.name)
+                webbrowser.open(f"file://{f.name}")
 
 
     target_name = target
@@ -103,7 +117,6 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map):
 
     except socket.gaierror:
         raise typer.BadParameter(f"[bold red][!][/bold red] Invalid hostname: {target_name}.")
-        sys.exit(1)
 
     process_time = time.perf_counter()
 
@@ -161,7 +174,6 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map):
                 results[ttl] = {"ip": None, "rtt": ['*', '*', '*'], "hostname": "Request timed out"}
 
         if gen_map:
-            bar.title("\033[1;33m[i]\033[0m Generating map")
             create_map()
 
         bar.title(f"\033[1;32m[+]\033[0m Traceroute complete! Time elapsed: {int(time.perf_counter() - process_time)}s \n")
