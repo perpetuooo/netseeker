@@ -28,12 +28,13 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
         # Add your own location first (starting point).
         host = info.get_geolocation()
         if host and host['status'] == 'success':
-            locations.append([host['lat'], host['lon']])
+            original_loc = [host['lat'], host['lon']]
+            locations.append(original_loc)
 
             folium.Marker(
-                location=[host['lat'], host['lon']],
-                tooltip=f"{host['query']} (you)",
-                popup=f"{host['city']}, {host['country']}",
+                location=original_loc,
+                tooltip=folium.Tooltip(f"{host['query']} (you)"),
+                popup=folium.Popup(f"{host['city']}, {host['country']}", max_width=250),
                 icon=folium.Icon(color='green', icon='info-circle', prefix='fa')
             ).add_to(m)
 
@@ -42,13 +43,16 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
             hop = results[ttl]
 
             if hop['ip'] and not hop['is_private'] and hop['location']['status'] == 'success':
-                hop_location = [hop['location']['lat'], hop['location']['lon']]
-                locations.append(hop_location)
-
-                console.print(f"hop {ttl}")
+                original_loc = [hop['location']['lat'], hop['location']['lon']]
+                locations.append(original_loc)
+                
+                # Apply tiny offset if this location already exists.
+                offset_multiplier = locations.count(original_loc)
+                offset = offset_multiplier * 0.0001  # ~11 meters per duplicate.
+                marker_loc = [original_loc[0] + offset, original_loc[1] + offset]
 
                 popup_text = f"""
-                <b>Hop #</b>: {ttl}<br>
+                <b>Hop #{ttl}</b><br>
                 <b>IP</b>: {hop['ip']}<br>
                 <b>Hostname</b>: {hop['hostname']}<br>
                 <b>Location</b>: {hop['location']['city']}, {hop['location']['country']}<br>
@@ -57,25 +61,25 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
                 <b>Organization</b>: {hop['location']['org']}<br>
                 """
 
-                # Check if is the target.
+                # Target hop marker.
                 if hop['ip'] == target:
                     folium.Marker(
-                        location=hop_location,
-                        tooltip=f"Target: {hop['ip']}",
-                        popup=folium.Popup(popup_text, max_width=200),
+                        location=marker_loc,
+                        tooltip=folium.Tooltip(f"Target: {hop['ip']}"),
+                        popup=folium.Popup(popup_text, max_width=250),
                         icon=folium.Icon(color='red', icon='bullseye', prefix='fa')
                     ).add_to(m)
                     break
 
                 # Regular hop marker.
                 folium.Marker(
-                    location=hop_location,
+                    location=marker_loc,
                     tooltip=f"Hop {ttl}: {hop['ip']}",
-                    popup=folium.Popup(popup_text, max_width=200),
+                    popup=folium.Popup(popup_text, max_width=250),
                     icon=folium.Icon(color='blue', icon='server', prefix='fa')
                 ).add_to(m)
 
-        # Draw the connecting line.
+        # Draw the connecting line using original coordinates.
         if len(locations) > 1:
             folium.PolyLine(
                 locations=locations,
@@ -85,19 +89,15 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
                 dash_array='5,5'
             ).add_to(m)
 
-        # Adjust map to fit all markers.
-        # if locations:
-        #     m.fit_bounds([locations[0], locations[-1]])
-
-        console.print(locations)
+        # Fit bounds to show all markers (using offset positions).
+        if locations:
+            m.fit_bounds([locations[0], locations[-1]])
 
         if save_file:
             desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
-            filepath = os.path.join(desktop_path, f"traceroute-{target_name}_{time.strftime("%d-%m-%Y_%H-%M-%S",time.localtime())}.html")
-
+            filepath = os.path.join(desktop_path, f"traceroute-{target_name}_{time.strftime('%d-%m-%Y_%H-%M-%S',time.localtime())}.html")
             m.save(filepath)
             webbrowser.open(f"file://{filepath}")
-        
         else:
             with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
                 m.save(f.name)
