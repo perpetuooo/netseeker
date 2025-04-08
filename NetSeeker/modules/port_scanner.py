@@ -2,11 +2,12 @@ import sys
 import time
 import typer
 import socket
-from threading import Event
+from threading import Event, Lock
 from rich.table import Table
 from rich.panel import Panel
 from typing import List, Set
 from alive_progress import alive_bar
+from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn, TaskID
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from resources import services
@@ -27,7 +28,9 @@ def portScanner(target, ports, timeout, threads, bg):
             return
 
         try:
-            bar.title(f"\033[1;33m[i]\033[0m Scanning port {port}")
+            # Update the progress description to show the current port
+            with progress_lock:
+                progress.update(task_id, description=f"[bold yellow]\\[i][/bold yellow] Scanning port {port}...")
 
             # Creating and sending a TCP socket to find out if the port is open.
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -59,6 +62,7 @@ def portScanner(target, ports, timeout, threads, bg):
 
         finally:
             sock.close()
+            progress.update(task_id, advance=1)
 
     def parse_ports(ports: str) -> List[int]:
         parsed_ports: Set[int] = set()  # Using set to dismiss duplicate ports.
@@ -97,6 +101,7 @@ def portScanner(target, ports, timeout, threads, bg):
     table = Table("Port", "State", "Service")
     stop = Event()
     banners = {}
+    progress_lock = Lock()
 
     # Check if the target is reachable by sending him a ICMP echo request.
     if info.ping(target):
@@ -107,12 +112,19 @@ def portScanner(target, ports, timeout, threads, bg):
         sys.exit()
 
     process_time = time.perf_counter()
+    parsed_ports = parse_ports(ports)
 
-    # Using ThreadPoolExecutor to scan multiple ports concurrently, improving performance.
-    with alive_bar(title=None, bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
-        try:
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("{task.completed}/{task.total} "),
+            transient=True,
+        ) as progress:
+            task_id: TaskID = progress.add_task("Initializing scan...", total=len(parsed_ports))
             with ThreadPoolExecutor(max_workers=threads) as executor:
-                futures = {executor.submit(scan, port): port for port in parse_ports(ports)}
+                futures = {executor.submit(scan, port): port for port in parsed_ports}
 
                 try:
                     for future in as_completed(futures):
@@ -127,14 +139,14 @@ def portScanner(target, ports, timeout, threads, bg):
                 except KeyboardInterrupt:
                     stop.set()
 
-        except KeyboardInterrupt:
-            stop.set()
+    except KeyboardInterrupt:
+        stop.set()
 
-        if stop.is_set():
-            bar.title(f"\033[1;31m[!]\033[0m Scan interrupted! Time elapsed: {int(time.perf_counter() - process_time)}s\n")
+    if stop.is_set():
+        console.print(f"[bold red][!][/bold red] Scan interrupted! Time elapsed: {int(time.perf_counter() - process_time)}s")
 
-        else:
-            bar.title(f"\033[1;32m[+]\033[0m Scan completed! Time elapsed: {int(time.perf_counter() - process_time)}s\n")
+    else:
+        console.print(f"[bold green][+][/bold green] Scan completed! Time elapsed: {int(time.perf_counter() - process_time)}s")
 
     if table.row_count == 0:
         console.print(f"\n[bold red][!][/bold red] No open ports on [bold]{target}[/bold]")
