@@ -17,7 +17,7 @@ def app_info():
 
 @app.command("portscan")
 def app_port_scanner(target: Annotated[str, Argument(help="Target IP/domain.")] = "127.0.0.1",
-                    ports: Annotated[str, Argument(help="Ports to scan (ex: 80 / 1-65535 / 20,22,443).")] = "1-1024",
+                    ports: Annotated[str, Option("--ports", "-p", help="Ports to scan (ex: 80 / 1-65535 / 20,22,443).")] = "1-1024",
                     timeout: Annotated[int, Option("--timeout", "-to", help="Timeout for waiting a reply (seconds).")] = 1,
                     threads: Annotated[int, Option("--threads", "-t", help="Max. amount of threads for the scanner process.")] = 100,
                     banner: Annotated[bool, Option("--banner", "-b", help="Enable banner grabbing for open ports.")] = False):
