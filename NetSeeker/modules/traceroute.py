@@ -1,13 +1,15 @@
 import os
 import sys
 import time
+from alive_progress import alive_bar
 import typer
 import socket
 import folium
 import tempfile
 import webbrowser
+from threading import Event
 from scapy.all import IP, UDP, ICMP, sr1
-from alive_progress import alive_bar
+from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
 
 from resources import services
 from resources import console
@@ -19,6 +21,62 @@ TODO:
 """
 
 def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
+
+    def tracert():
+        dest_reached = False
+
+        # Increase TTL for each hop.
+        for ttl in range(1, max_hops + 1):
+            if dest_reached:
+                break
+
+            hop_info = {
+                'ip': None,
+                'rtt': [],
+                'hostname': None,
+                'is_private': None,
+                'location': None,
+            }
+            
+            # Sends 3 packets per hop (as default in traceroutes).
+            for attempt in range(3):
+                start_time = time.perf_counter()
+
+                # Create a UDP packet and sending it to the destination address.
+                pkt = IP(dst=target, ttl=ttl) / UDP(dport=33434 + ttl)    # Send each packet to a unique port.
+                reply = sr1(pkt, timeout=timeout, verbose=False)
+
+                # Calculate RTT.
+                rtt = (time.perf_counter() - start_time) * 1000  # Convert to ms.
+
+                if reply:
+                    hop_info['ip'] = reply.src  # Router IP.
+                    hop_info['rtt'].append(f"{round(rtt)}ms")
+
+                    # Results depends if there is an IP and if it is public.
+                    if reply.src is not None and info.check_ipv4(reply.src) is True:
+                        hop_info['hostname'] = info.get_hostname(reply.src)
+                        hop_info['is_private'] = False
+                        hop_info['location'] = info.get_geolocation(reply.src)
+                    
+                    else:
+                        hop_info['hostname'] = None
+                        hop_info['is_private'] = True
+                        hop_info['location'] = None
+
+                    # Check if the packet reached the destination.
+                    if reply.haslayer(ICMP):
+                        if reply[ICMP].type == 3 and reply[ICMP].code == 3:   # Destination unreachable (port unreachable).
+                            results[ttl] = hop_info
+                            dest_reached = True
+                
+                time.sleep(0.1)
+            
+            if hop_info['ip'] is not None:
+                results[ttl] = hop_info
+            else:
+                results[ttl] = {"ip": None, "rtt": ['*', '*', '*'], "hostname": "Request timed out"}
+
 
     def create_map():
         bar.title("\033[1;33m[i]\033[0m Generating map")
@@ -105,8 +163,8 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
 
 
     target_name = target
-    dest_reached = False
     info = services.DevicesInfo()
+    stop = Event()
     results = {}
     
     # Get IP if the target is a domain.
@@ -121,62 +179,22 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
     process_time = time.perf_counter()
 
     with alive_bar(title=f"\033[1;33m[i]\033[0m Tracerouting to {target_name}", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
-        # Increase TTL for each hop.
-        for ttl in range(1, max_hops + 1):
-            if dest_reached:
-                break
+        try:
+            tracert()
 
-            hop_info = {
-                'ip': None,
-                'rtt': [],
-                'hostname': None,
-                'is_private': None,
-                'location': None,
-            }
-            
-            # Sends 3 packets per hop (as default in traceroutes).
-            for attempt in range(3):
-                start_time = time.perf_counter()
+            if gen_map:
+                create_map()
+        
+        except KeyboardInterrupt:
+            stop.set()
 
-                # Create a UDP packet and sending it to the destination address.
-                pkt = IP(dst=target, ttl=ttl) / UDP(dport=33434 + ttl)    # Send each packet to a unique port.
-                reply = sr1(pkt, timeout=timeout, verbose=False)
+        # bar.title(f"\033[1;32m[+]\033[0m Traceroute complete! Time elapsed: {int(time.perf_counter() - process_time)}s \n")
 
-                # Calculate RTT.
-                rtt = (time.perf_counter() - start_time) * 1000  # Convert to ms.
-
-                if reply:
-                    hop_info['ip'] = reply.src  # Router IP.
-                    hop_info['rtt'].append(f"{round(rtt)}ms")
-
-                    # Results depends if there is an IP and if it is public.
-                    if reply.src is not None and info.check_ipv4(reply.src) is True:
-                        hop_info['hostname'] = info.get_hostname(reply.src)
-                        hop_info['is_private'] = False
-                        hop_info['location'] = info.get_geolocation(reply.src)
-                    
-                    else:
-                        hop_info['hostname'] = None
-                        hop_info['is_private'] = True
-                        hop_info['location'] = None
-
-                    # Check if the packet reached the destination.
-                    if reply.haslayer(ICMP):
-                        if reply[ICMP].type == 3 and reply[ICMP].code == 3:   # Destination unreachable (port unreachable).
-                            results[ttl] = hop_info
-                            dest_reached = True
-                
-                time.sleep(0.1)
-            
-            if hop_info['ip'] is not None:
-                results[ttl] = hop_info
-            else:
-                results[ttl] = {"ip": None, "rtt": ['*', '*', '*'], "hostname": "Request timed out"}
-
-        if gen_map:
-            create_map()
-
-        bar.title(f"\033[1;32m[+]\033[0m Traceroute complete! Time elapsed: {int(time.perf_counter() - process_time)}s \n")
+        if stop.is_set():
+            console.print("traceroute interrupted!")
+        
+        else:
+            console.print("traceroute completed!")
 
     console.print(results)
 
