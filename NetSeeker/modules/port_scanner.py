@@ -6,8 +6,7 @@ from threading import Event, Lock
 from rich.table import Table
 from rich.panel import Panel
 from typing import List, Set
-from alive_progress import alive_bar
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn, TaskID
+from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from resources import services
@@ -28,9 +27,9 @@ def portScanner(target, ports, timeout, threads, bg):
             return
 
         try:
-            # Update the progress description to show the current port
+            # Update the progress description to show the current port.
             with progress_lock:
-                progress.update(task_id, description=f"[bold yellow]\\[i][/bold yellow] Scanning port {port}...")
+                progress.update(task_id, description=f"Scanning port {port}")
 
             # Creating and sending a TCP socket to find out if the port is open.
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -100,8 +99,8 @@ def portScanner(target, ports, timeout, threads, bg):
     info = services.DevicesInfo()
     table = Table("Port", "State", "Service")
     stop = Event()
-    banners = {}
     progress_lock = Lock()
+    banners = {}
 
     # Check if the target is reachable by sending him a ICMP echo request.
     if info.ping(target):
@@ -116,14 +115,13 @@ def portScanner(target, ports, timeout, threads, bg):
 
     try:
         with Progress(
-            SpinnerColumn(),
+            SpinnerColumn(spinner_name="line", style="white"),
             TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TextColumn("{task.completed}/{task.total} "),
             transient=True,
         ) as progress:
-            task_id: TaskID = progress.add_task("Initializing scan...", total=len(parsed_ports))
-            with ThreadPoolExecutor(max_workers=threads) as executor:
+            task_id:TaskID = progress.add_task("Initializing scan...", total=len(parsed_ports))
+            
+            with ThreadPoolExecutor(max_workers=threads) as executor:    # Using ThreadPoolExecutor to scan multiple hosts concurrently, improving performance.
                 futures = {executor.submit(scan, port): port for port in parsed_ports}
 
                 try:

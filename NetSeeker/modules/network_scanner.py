@@ -1,8 +1,8 @@
 import sys
 import time
-from threading import Event
+from threading import Event, Lock
 from rich.table import Table
-from alive_progress import alive_bar
+from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
 from scapy.all import ARP, Ether, srp
 from ipaddress import IPv4Network
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -24,6 +24,10 @@ def networkScanner(target, timeout, threads):
             return
 
         try:
+            # Update the progress description to show the current host.
+            with progress_lock:
+                progress.update(task_id, description=f"Scanning host {host}")
+
             # Creates an ARP package to discover hosts.
             arp = ARP(pdst=str(host))
             ether = Ether(dst="ff:ff:ff:ff:ff:ff")
@@ -45,13 +49,17 @@ def networkScanner(target, timeout, threads):
             sys.exit(1)
 
         except KeyboardInterrupt:
-            stop.set()  
+            stop.set()
             return
+
+        finally:
+            progress.update(task_id, advance=1)
 
 
     info = services.DevicesInfo()
     table = Table("Hostname", "IP", "MAC")
     stop = Event()
+    progress_lock = Lock()
 
     # Validate and process the target input.
     try:
@@ -64,33 +72,42 @@ def networkScanner(target, timeout, threads):
         console.print(f"[bold red][!][/bold red] Invalid target: {target}")
         sys.exit(1)
     
+    # Create a list of all hosts in the network.
+    hosts = [str(ip) for ip in network.hosts()]
     process_time = time.perf_counter()
 
-    # Using ThreadPoolExecutor to scan multiple hosts concurrently, improving performance.
-    with alive_bar(title=f"\033[1;33m[i]\033[0m Scanning network {target}", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
-        # Create a list of all hosts in the network
-        hosts = [str(ip) for ip in network.hosts()]
-        try:
-            with ThreadPoolExecutor(max_workers=threads) as executor:
+    try:
+        with Progress(
+            SpinnerColumn(spinner_name="line", style="white"),
+            TextColumn("[progress.description]{task.description}"),
+            transient=True,
+        ) as progress:
+            task_id:TaskID = progress.add_task("Initializing scan...", total=len(hosts))
+
+            with ThreadPoolExecutor(max_workers=threads) as executor:    # Using ThreadPoolExecutor to scan multiple hosts concurrently, improving performance.
                 futures = {executor.submit(scan, host): host for host in hosts}
 
-                for future in as_completed(futures):
-                    if stop.is_set():  
-                        # Cancel all pending futures.
-                        for f in futures:
-                            if not f.done():
-                                f.cancel()
-                        
-                        break
-            
-        except KeyboardInterrupt:
-            stop.set()
+                try:
+                    for future in as_completed(futures):
+                        if stop.is_set():
+                            # Cancel all pending futures.
+                            for f in futures:
+                                if not f.done():
+                                    f.cancel()
+                            
+                            break
+
+                except KeyboardInterrupt:
+                    stop.set()
+
+    except KeyboardInterrupt:
+        stop.set()
         
-        if stop.is_set():
-            bar.title(f"\033[1;31m[!]\033[0m Scan interrupted! Time elapsed: {int(time.perf_counter() - process_time)}s\n")
-        
-        else:
-            bar.title(f"\033[1;32m[+]\033[0m Scan completed! Time elapsed: {int(time.perf_counter() - process_time)}s\n")
+    if stop.is_set():
+        console.print(f"[bold red][!][/bold red] Scan interrupted! Time elapsed: {int(time.perf_counter() - process_time)}s")
+    
+    else:
+        console.print(f"[bold green][+][/bold green] Scan completed! Time elapsed: {int(time.perf_counter() - process_time)}s")
 
     if table.row_count == 0:
         console.print(f"\n[bold red][!][/bold red] No hosts found on [bold]{target}[/bold] network.")

@@ -1,7 +1,6 @@
 import os
 import sys
 import time
-from alive_progress import alive_bar
 import typer
 import socket
 import folium
@@ -79,7 +78,7 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
 
 
     def create_map():
-        bar.title("\033[1;33m[i]\033[0m Generating map")
+        progress.update(task_id, description="Generating map...")
         m = folium.Map(world_copy_jump=True)
         locations = []
 
@@ -178,7 +177,13 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
 
     process_time = time.perf_counter()
 
-    with alive_bar(title=f"\033[1;33m[i]\033[0m Tracerouting to {target_name}", bar=None, spinner="classic", monitor=False, elapsed=False, stats=False) as bar:
+    with Progress(
+        SpinnerColumn(spinner_name="line", style="white"),
+        TextColumn("[progress.description]{task.description}"),
+        transient=True,
+    ) as progress:
+        task_id:TaskID = progress.add_task(f"Tracerouting to {target_name}", total=max_hops)
+
         try:
             tracert()
 
@@ -188,14 +193,13 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
         except KeyboardInterrupt:
             stop.set()
 
-        # bar.title(f"\033[1;32m[+]\033[0m Traceroute complete! Time elapsed: {int(time.perf_counter() - process_time)}s \n")
-
         if stop.is_set():
-            console.print("traceroute interrupted!")
+            console.print(f"[bold red][!][/bold red] Traceroute interrupted! Time elapsed: {int(time.perf_counter() - process_time)}s")
         
         else:
-            console.print("traceroute completed!")
+            console.print(f"[bold green][+][/bold green] Scan completed! Time elapsed: {int(time.perf_counter() - process_time)}s")
 
+    # need to parse these results...
     console.print(results)
 
 
