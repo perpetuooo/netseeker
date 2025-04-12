@@ -1,23 +1,29 @@
+import socket
 import sys
 import time
+import random
 from threading import Event, Lock
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
-from scapy.all import ARP, Ether, srp
+from scapy.all import ARP, Ether, IP, srp, RandMAC
 from ipaddress import IPv4Network
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import typer
 
 from resources import console
 from resources import services
 
 """
 TODO: 
-- Add support to IPv6 
+- Add support to IPv6
+- UDP and TCP ACK scans
 - OS fingerprinting
 - Detect devices types based on their MACs (OUI)
+- Add a verbose option?
 """
 
-def networkScanner(target, timeout, threads):
+def networkScanner(target, retries, timeout, threads, stealth):
     
     def scan(host):
         if stop.is_set():
@@ -28,25 +34,33 @@ def networkScanner(target, timeout, threads):
             with progress_lock:
                 progress.update(task_id, description=f"Scanning host {host}")
 
-            # Creates an ARP package to discover hosts.
-            arp = ARP(pdst=str(host))
-            ether = Ether(dst="ff:ff:ff:ff:ff:ff")
-            packet = ether/arp
+            # ARP Scan for local networks.
+            if local_network:
+                arp = ARP(pdst=str(host))
+                ether = Ether(dst="ff:ff:ff:ff:ff:ff", src=RandMAC() if stealth else None)
+                packet = ether / arp
 
-            # Sends the package and waits for a response.
-            result = srp(packet, timeout=timeout, verbose=0)[0]
+                for _ in range(retries):
+                    result = srp(packet, timeout=timeout, verbose=0)[0]    # Sends the package and waits for a response.
+                    
+                    if result: break
+                    if stealth: time.sleep(random.uniform(0.1, 0.5))
+
+                # Process each response received from the network.
+                for _, received in result:
+                    if stop.is_set():
+                        break
+                    
+                    if received.psrc not in found_hosts:
+                        found_hosts[received.psrc] = {"hostname": info.get_hostname(received.psrc), "mac": received.hwsrc}
             
-            # Process each response received from the network.
-            for sent, received in result:
-                if stop.is_set():
-                    break
-
-                hostname = info.get_hostname(received.psrc) # Tries to retrieve the hostname using the IP address from the response.
-                table.add_row(hostname, received.psrc, received.hwsrc)
+            # ICMP Ping + TCP SYN for remote networks.
+            else:
+                pass
         
         except Exception as e:
             console.print(f"[bold red][!][/bold red] ERROR: {str(e)}")
-            sys.exit(1)
+            raise typer.Exit(1)
 
         except KeyboardInterrupt:
             stop.set()
@@ -55,19 +69,21 @@ def networkScanner(target, timeout, threads):
         finally:
             progress.update(task_id, advance=1)
 
-
+    found_hosts = {}    # IP as key, hostname and MAC as values.
     info = services.DevicesInfo()
     table = Table("Hostname", "IP", "MAC")
     stop = Event()
     progress_lock = Lock()
 
+    current_network = info.get_network()
+
     # Validate and process the target input.
+    if target in ("Connected Network", current_network):
+        target = current_network # Use the current connected network if no target is specified.
+        local_network = True
+    
     try:
-        if target == 'connected network':
-            target = info.get_network() # Use the current connected network if no target is specified.
-
         network = IPv4Network(target)
-
     except ValueError:
         console.print(f"[bold red][!][/bold red] Invalid target: {target}")
         sys.exit(1)
@@ -108,6 +124,10 @@ def networkScanner(target, timeout, threads):
     
     else:
         console.print(f"[bold green][+][/bold green] Scan completed! Time elapsed: {int(time.perf_counter() - process_time)}s")
+
+
+    for ip_addr, data in found_hosts.items():
+        table.add_row(data['hostname'], ip_addr, data['mac'])
 
     if table.row_count == 0:
         console.print(f"\n[bold red][!][/bold red] No hosts found on [bold]{target}[/bold] network.")
