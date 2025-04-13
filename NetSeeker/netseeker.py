@@ -28,8 +28,8 @@ def app_port_scanner(target: Annotated[str, Argument(help="Target IP/domain.")] 
 @app.command("netscan")
 def app_network_scanner(target: Annotated[str, Argument(help="Target network.")] = "Connected Network",
                     stealth: Annotated[bool, Option("--stealth", "-sS", help="Slower scan but avoids detection better.")] = False,
-                    retries: Annotated[int, Option("--retries", "-r", help="Max. retries per host.")] = 1,
-                    timeout: Annotated[int, Option("--timeout", "-to", help="Timeout for waiting a reply (seconds).")] = 3,
+                    retries: Annotated[int, Option("--retries", "-r", help="Max. retries per host.")] = 0,
+                    timeout: Annotated[int, Option("--timeout", "-to", help="Timeout for waiting a reply (seconds).")] = 1,
                     threads: Annotated[int, Option("--threads", "-t", help="Max. amount of threads for the scanner process.")] = 100):
     """Discover all hosts on the target network."""
     network_scanner.networkScanner(target, retries, timeout, threads, stealth)
