@@ -19,20 +19,25 @@ def app_info():
 def app_port_scanner(target: Annotated[str, Argument(help="Target IP/domain.")] = "127.0.0.1",
                     ports: Annotated[str, Option("--ports", "-p", help="Ports to scan (ex: 80 / 1-65535 / 20,22,443).")] = "1-1024",
                     timeout: Annotated[int, Option("--timeout", "-to", help="Timeout for waiting a reply (seconds).")] = 1,
-                    threads: Annotated[int, Option("--threads", "-t", help="Max. amount of threads for the scanner process.")] = 100,
-                    banner: Annotated[bool, Option("--banner", "-b", help="Enable banner grabbing for open ports.")] = False):
-    """Scan for open ports on the target address."""
-    port_scanner.portScanner(target, ports, timeout, threads, banner)
+                    banner: Annotated[bool, Option("--banner", "-b", help="Enable banner grabbing for open ports.")] = False,
+                    threads: Annotated[int, Option("--threads", "-t", help="Max. threads for the scanner process.")] = 100):
+    """Scan for open ports on a address."""
+    port_scanner.portScanner(target, ports, timeout, banner, threads)
 
 
 @app.command("netscan")
-def app_network_scanner(target: Annotated[str, Argument(help="Target network.")] = "Connected Network",
-                    stealth: Annotated[bool, Option("--stealth", "-sS", help="Slower scan but avoids detection better.")] = False,
+def app_network_scanner(target: Annotated[str, Argument(help="Target IP range.")] = "Connected Network",
                     retries: Annotated[int, Option("--retries", "-r", help="Max. retries per host.")] = 0,
                     timeout: Annotated[int, Option("--timeout", "-to", help="Timeout for waiting a reply (seconds).")] = 1,
-                    threads: Annotated[int, Option("--threads", "-t", help="Max. amount of threads for the scanner process.")] = 100):
-    """Discover all hosts on the target network."""
-    network_scanner.networkScanner(target, retries, timeout, threads, stealth)
+                    udp: Annotated[bool, Option("--udp", "-PU", help="UDP scan.")] = False,
+                    tcp_ack: Annotated[bool, Option("--tcp-ack", "-PA", help="TCP ACK scan.")] = False,
+                    local_tcp_syn: Annotated[bool, Option("--tcp-syn", "-PS", help="Use TCP SYN scan on local networks.")] = False,
+                    icmp_fallback: Annotated[bool, Option("--icmp", "-PE", help="ICMP Fallback scan.")] = False,
+                    force_scan: Annotated[bool, Option("--force", "-f", help="Force all scans even if host was already found.")] = False,
+                    stealth: Annotated[bool, Option("--stealth", "-sS", help="Slower scanners to avoid detection (disable ICMP scans).")] = False,
+                    threads: Annotated[int, Option("--threads", "-t", help="Max. threads for the scanner process.")] = 100):
+    """Discover hosts on a network (ARP + ICMP for local networks and ICMP + TCP SYN on common ports for remote)."""
+    network_scanner.networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, force_scan)
 
 
 @app.command("traceroute")
