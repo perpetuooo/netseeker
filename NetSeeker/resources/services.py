@@ -19,7 +19,7 @@ class DevicesInfo:
         ether_frame = scapy.Ether(dst="ff:ff:ff:ff:ff:ff")
         request = ether_frame/arp_request
 
-        response_list = scapy.srp(request, timeout=5, retry=1, verbose=False)[0]
+        response_list = scapy.srp(request, timeout=1, verbose=False)[0]
 
         if response_list:
             return response_list[0][1].hwsrc

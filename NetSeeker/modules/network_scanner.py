@@ -2,6 +2,7 @@ import socket
 import sys
 import time
 import random
+import typer
 
 from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
 from scapy.all import ARP, Ether, IP, srp, RandMAC, ICMP, sr1, TCP
@@ -9,8 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from ipaddress import IPv4Network
 from threading import Event, Lock
 from rich.table import Table
-
-import typer
+from scapy.config import conf
 
 from resources import console
 from resources import services
@@ -24,93 +24,141 @@ TODO:
 - Add a verbose option?
 """
 
-def networkScanner(target, retries, timeout, threads, stealth):
+def networkScanner(target, retries, timeout, threads, stealth, force_scan, local_tcp_syn):
     
     def scan(host):
-        if stop.is_set(): return
+
+        def arp_scan():
+            nonlocal host_responded
+            
+            try:
+                if stop.is_set(): return
+
+                arp_pkt = Ether(dst="ff:ff:ff:ff:ff:ff", src=(RandMAC() if stealth else None))/ARP(pdst=str(host))
+                response = None
+
+                if stealth: time.sleep(random.uniform(0.1, 0.5))
+
+                if retries == 0:
+                    response = srp(arp_pkt, timeout=timeout, verbose=0)[0]
+                
+                else:
+                    for _ in range(retries):
+                        response = srp(arp_pkt, timeout=timeout, verbose=0)[0]
+                        if response: break
+
+                if response:
+                    for _, received in response:
+                        host_data['hostname'] = info.get_hostname(host)
+                        host_data['mac'] = received.hwsrc
+                        host_data['scans'].append("ARP")
+                        host_responded = True
+            
+            except KeyboardInterrupt:
+                stop.set()
+                return
+            
+            except Exception as e:
+                #if verbose:
+                console.print(f"[bold red][!][/bold red] ARP SCAN ERROR: {str(e)}")
+
+        def icmp_scan():
+            nonlocal host_responded
+
+            try:
+                if stop.is_set(): return
+
+                icmp_echo = IP(dst=str(host))/ICMP()
+                response = None
+
+                if retries == 0:
+                    response = sr1(icmp_echo, timeout=timeout, verbose=0)
+
+                else:   
+                    for _ in range(retries):
+                        response = sr1(icmp_echo, timeout=timeout, verbose=0)
+                        if response: break
+
+                if response and response.haslayer(ICMP) and response[ICMP].type == 0:   # Echo reply.
+                    host_data['scans'].append("ICMP")
+                    host_responded = True
+            
+            except KeyboardInterrupt:
+                stop.set()
+                return
+            
+            except Exception as e:
+                #if verbose:
+                console.print(f"[bold red][!][/bold red] ICMP SCAN ERROR: {str(e)}")
+            
+        def tcp_syn_scan():
+            nonlocal host_responded
+
+            try:
+                open_ports = []
+                for port in [80, 443, 22]:
+                    console.print(f"--- PORT {port} ---")
+                    if stop.is_set(): return
+
+                    syn_pkt = IP(dst=str(host))/TCP(dport=port, flags="S")
+                    response = None
+
+                    if retries == 0:
+                        response = sr1(syn_pkt, timeout=timeout, verbose=0)
+                    
+                    else:
+                        for _ in range(retries):
+                            response = sr1(syn_pkt, timeout=timeout, verbose=0)
+                            if response: break
+
+                    # Check for SYN-ACK or RST.
+                    if response and response.haslayer(TCP):
+                        if response[TCP].flags & 0x12:  # SYN-ACK (port open).
+                            open_ports.append(str(port))
+                            host_responded = True
+                        
+                        elif response[TCP].flags & 0x04: # RST (host alive).
+                            host_responded = True
+                
+                if open_ports:
+                    host_data['scans'].append(f"TCP({','.join(open_ports)})")
+                
+            except KeyboardInterrupt:
+                stop.set()
+                return
+            
+            except Exception as e:
+                #if verbose:
+                console.print(f"[bold red][!][/bold red] TCP SYN SCAN ERROR: {str(e)}")
+
 
         try:
             # Update the progress description to show the current host.
             with progress_lock:
                 progress.update(task_id, description=f"Scanning host {host}")
 
-                host_responded = False
-                host_data = {
-                    'hostname': "NOT FOUND",
-                    'mac': "NOT FOUND",
-                    'scans': []
-                }
+            host_responded = False
+            host_data = {
+                'hostname': "NOT FOUND",
+                'mac': "NOT FOUND",
+                'scans': []
+            }
 
-            # ARP Scan for local networks.
             if local_network:
-                if stop.is_set(): return
-
-                arp_pkt = Ether(dst="ff:ff:ff:ff:ff:ff", src=(RandMAC() if stealth else None))/ARP(pdst=str(host))
-                result = None
-
-                if retries == 0:
-                    if stealth: time.sleep(random.uniform(0.1, 0.5))
-                    result = srp(arp_pkt, timeout=timeout, verbose=0)[0]
+                console.print("--- ARP SCAN ---")
+                arp_scan()
                 
-                else:
-                    for _ in range(retries):
-                        if stealth: time.sleep(random.uniform(0.1, 0.5))
-                        result = srp(arp_pkt, timeout=timeout, verbose=0)[0]
-                    
-                        if result: break
+            if not stealth and (not host_responded or force_scan):
+                console.print("--- ICMP SCAN ---")
+                icmp_scan()
 
-                if result:
-                    for _, received in result:
-                        host_data['hostname'] = info.get_hostname(host)
-                        host_data['mac'] = received.hwsrc
-                        host_data['scans'].append("ARP")
-                        host_responded = True
+            if (not local_network or local_tcp_syn) and (not host_responded or force_scan):
+                console.print("--- TCP SYN SCAN ---")
+                tcp_syn_scan()
 
-            
-            # # ICMP echo for all networks (standard ping).
-            if not stealth:
-                if stop.is_set(): return
+            if stop.is_set(): return
 
-                icmp_echo = IP(dst=str(host))/ICMP()
-                ans = None
-
-                if retries == 0:
-                    ans = sr1(icmp_echo, timeout=timeout, verbose=0)
-
-                else:   
-                    for _ in range(retries):
-                        ans = sr1(icmp_echo, timeout=timeout, verbose=0)
-
-                        if ans: break
-
-                # Echo Reply.
-                if ans and ans.haslayer(ICMP) and ans[ICMP].type == 0:
-                    host_data['scans'].append("ICMP")
-                    host_responded = True
-    
-            
-            # TCP SYN to common ports for all networks.
-            open_ports = []
-            for port in [80, 443, 22]:
-                if stop.is_set(): return
-
-                syn_pkt = IP(dst=str(host))/TCP(dport=port, flags="S")
-
-                for _ in range(retries):
-                    ans = sr1(syn_pkt, timeout=timeout, verbose=0)
-
-                    # Check for SYN-ACK or RST.
-                    if ans and ans.haslayer(TCP):
-                        if ans[TCP].flags & 0x12:  # SYN-ACK (port open).
-                            open_ports.append(str(port))
-                            host_responded = True
-                        
-                        elif ans[TCP].flags & 0x04: # RST (host alive).
-                            host_responded = True
-            
-            if open_ports:
-                host_data['scans'].append(f"TCP({','.join(open_ports)})")
-
+            # Append results.
             if host_responded:
                 found_hosts[host] = host_data
         
@@ -128,9 +176,13 @@ def networkScanner(target, retries, timeout, threads, stealth):
 
     found_hosts = {}    # IP as key, hostname and MAC as values.
     info = services.DevicesInfo()
-    table = Table("Hostname", "IP", "MAC", "Scans")
+    table = Table("Hostname", "IP", "MAC", ("Scans" if force_scan else "Scan"))
     stop = Event()
     progress_lock = Lock()
+
+    # Force Scapy to refresh routing and suppress warnings.
+    conf.route.resync()
+    conf.verb = 0 
 
     current_network = info.get_network()
 
@@ -184,8 +236,8 @@ def networkScanner(target, retries, timeout, threads, stealth):
 
 
     for ip_addr, data in found_hosts.items():
-        scans_list = data.get('scans', [])
-        table.add_row(data['hostname'], ip_addr, data['mac'], ", ".join(scans_list))
+        scans_list = data.get('scans', []) if force_scan else data.get('scans', [])
+        table.add_row(data['hostname'], ip_addr, data['mac'], ", ".join(map(str, scans_list)))
 
     if table.row_count == 0:
         console.print(f"\n[bold red][!][/bold red] No hosts found on [bold]{target}[/bold] network.")
