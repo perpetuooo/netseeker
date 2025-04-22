@@ -20,48 +20,53 @@ TODO:
 - Create a stealth scan alternative
 """
 
-def portScanner(target, ports, timeout, threads, bg):
+def portScanner(target, ports, timeout, udp, threads, bg):
 
-    def scan(port):
-        if stop.is_set():
-            return
+    def scanner(port):
 
-        try:
-            # Update the progress description to show the current port.
-            with progress_lock:
-                progress.update(task_id, description=f"Scanning port {port}")
+        def tcp_scan():
+            if stop.is_set(): return
 
-            # Creating and sending a TCP socket to find out if the port is open.
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            socket.setdefaulttimeout(timeout)
+            try:
+                # Update the progress description to show the current port.
+                with progress_lock:
+                    progress.update(task_id, description=f"Scanning port {port}")
+
+                # Create and send a TCP socket.
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)    
+                socket.setdefaulttimeout(timeout)
+                response = sock.connect_ex((target, port))
+
+                # If the port is open, add it to the results table.
+                if response == 0:
+                    port_service = socket.getservbyport(port)
+                    table.add_row(str(port), "OPEN", (port_service or "NOT FOUND"))
+
+                    if bg:  # Banner grabbing.
+                        try:
+                            banner = sock.recv(1024).decode().strip()   # Receive up to 1024 bytes for the banner.
+                            banners[port] = banner
+
+                        except Exception:
+                            banners[port] = "NOT FOUND"
+                    
+            except Exception as e:
+                if "port/proto not found" in str(e):  # Service name not found.
+                    pass
+
+                else:
+                    console.print(f"[bold red][!][/bold red] TCP ERROR: {str(e)}")
+                    sock.close()
+                    return None
             
-            result = sock.connect_ex((target, port))
+            except KeyboardInterrupt:
+                sock.close()
+                stop.set()
+                return None
 
-            # If the port is open, add it to the results table.
-            if result == 0:
-                port_service = socket.getservbyport(port)
-                table.add_row(str(port), "OPEN", (port_service or "NOT FOUND"))
-
-                if bg:  # If banner grabbing is enabled.
-                    try:
-                        banner = sock.recv(1024).decode().strip()   # Receive up to 1024 bytes for the banner.
-                        banners[port] = banner
-
-                    except Exception:
-                        banners[port] = "NOT FOUND"
-                
-        except Exception as e:
-            console.print(f"[bold red][!][/bold red] ERROR: {str(e)}")
-            sock.close()
-            return None
-        
-        except KeyboardInterrupt:
-            sock.close()
-            return None
-
-        finally:
-            sock.close()
-            progress.update(task_id, advance=1)
+            finally:
+                sock.close()
+                progress.update(task_id, advance=1)
 
     def parse_ports(ports: str) -> List[int]:
         parsed_ports: Set[int] = set()  # Using set to dismiss duplicate ports.
@@ -121,8 +126,8 @@ def portScanner(target, ports, timeout, threads, bg):
         ) as progress:
             task_id:TaskID = progress.add_task("Initializing scan...", total=len(parsed_ports))
             
-            with ThreadPoolExecutor(max_workers=threads) as executor:    # Using ThreadPoolExecutor to scan multiple hosts concurrently, improving performance.
-                futures = {executor.submit(scan, port): port for port in parsed_ports}
+            with ThreadPoolExecutor(max_workers=threads) as executor:    # Using ThreadPoolExecutor to scan multiple ports concurrently, improving performance.
+                futures = {executor.submit(scanner, port): port for port in parsed_ports}
 
                 try:
                     for future in as_completed(futures):
