@@ -68,6 +68,60 @@ def portScanner(target, ports, timeout, udp, threads, bg):
                 sock.close()
                 progress.update(task_id, advance=1)
 
+        def udp_scan():
+            if stop.is_set(): return
+
+            try:
+                # Update the progress description to show the current port.
+                with progress_lock:
+                    progress.update(task_id, description=f"Scanning port {port}")
+                
+                # Create and send a UDP socket.
+                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                sock.settimeout(timeout)
+                sock.sendto(b"",(target, port))
+
+                try:
+                    data, addr = sock.recvfrom(1024)
+
+                    # If there is any response, it might be open or filtered.
+                    port_service = socket.getservbyport(port)
+                    table.add_row(str(port) + "/udp", "OPEN|FILTERED", (port_service or "NOT FOUND"))
+
+                # No response within timeout could also mean it might be open/filtered.
+                except socket.timeout:
+                    port_service = socket.getservbyport(port, "udp")
+                    table.add_row(str(port) + "/udp", "OPEN|FILTERED", (port_service or "NOT FOUND"))
+            
+                except socket.error as e:
+                    if e.errno == 10054 or e.errno == 149:  # ICMP Port Unreachable (Windows/Linux)
+                        pass
+                    
+            except Exception as e:
+                if "port/proto not found" in str(e):  # Service name not found.
+                    pass
+                
+                else:
+                    console.print(f"[bold red][!][/bold red] UDP ERROR: {str(e)}")
+                    sock.close()
+                    return None
+            
+            except KeyboardInterrupt:
+                stop.set()
+                return None
+            
+            finally:
+                progress.update(task_id, advance=1)
+                sock.close()
+          
+
+        if udp:
+            udp_scan()
+        
+        else:
+            tcp_scan()
+        
+
     def parse_ports(ports: str) -> List[int]:
         parsed_ports: Set[int] = set()  # Using set to dismiss duplicate ports.
 
@@ -77,6 +131,10 @@ def portScanner(target, ports, timeout, udp, threads, bg):
             if "-" in part: # Handle port ranges (e.g., "1-1024").
                 try:
                     start, end = map(int, part.split("-"))
+
+                    if end > 65535:     #Max ports.
+                        end = 65535
+
                     parsed_ports.update(range(start, end + 1))
 
                 except ValueError:
