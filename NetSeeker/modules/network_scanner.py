@@ -1,8 +1,8 @@
-import socket
 import sys
 import time
 import random
 import typer
+import logging
 
 from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
 from scapy.all import ARP, Ether, IP, srp, RandMAC, ICMP, sr1, TCP
@@ -24,9 +24,9 @@ TODO:
 - Add a verbose option?
 """
 
-def networkScanner(target, retries, timeout, threads, stealth, force_scan, local_tcp_syn):
+def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, force_scan):
     
-    def scan(host):
+    def scanner(host):
 
         def arp_scan():
             nonlocal host_responded
@@ -97,7 +97,6 @@ def networkScanner(target, retries, timeout, threads, stealth, force_scan, local
             try:
                 open_ports = []
                 for port in [80, 443, 22]:
-                    console.print(f"--- PORT {port} ---")
                     if stop.is_set(): return
 
                     syn_pkt = IP(dst=str(host))/TCP(dport=port, flags="S")
@@ -145,15 +144,12 @@ def networkScanner(target, retries, timeout, threads, stealth, force_scan, local
             }
 
             if local_network:
-                console.print("--- ARP SCAN ---")
                 arp_scan()
                 
             if not stealth and (not host_responded or force_scan):
-                console.print("--- ICMP SCAN ---")
                 icmp_scan()
 
-            if (not local_network or local_tcp_syn) and (not host_responded or force_scan):
-                console.print("--- TCP SYN SCAN ---")
+            if (not local_network) or (local_network and local_tcp_syn and (not host_responded or force_scan)):
                 tcp_syn_scan()
 
             if stop.is_set(): return
@@ -182,7 +178,7 @@ def networkScanner(target, retries, timeout, threads, stealth, force_scan, local
 
     # Force Scapy to refresh routing and suppress warnings.
     conf.route.resync()
-    conf.verb = 0 
+    logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 
     current_network = info.get_network()
 
@@ -210,7 +206,7 @@ def networkScanner(target, retries, timeout, threads, stealth, force_scan, local
             task_id:TaskID = progress.add_task("Initializing scan...", total=len(hosts))
 
             with ThreadPoolExecutor(max_workers=threads) as executor:    # Using ThreadPoolExecutor to scan multiple hosts concurrently, improving performance.
-                futures = {executor.submit(scan, host): host for host in hosts}
+                futures = {executor.submit(scanner, host): host for host in hosts}
 
                 try:
                     for future in as_completed(futures):
