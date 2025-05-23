@@ -16,7 +16,6 @@ from resources import console
 """
 TODO:
 - Add IPv6 support
-- Create a map with the result info
 """
 
 def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
@@ -172,8 +171,11 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
             target = socket.gethostbyname(target)
             target_name = f"{target_name} ({target})"
 
+        if not info.check_ipv4(target):
+            raise typer.BadParameter(f"[bold red][!][/bold red] Invalid hostname: {target_name}") 
+
     except socket.gaierror:
-        raise typer.BadParameter(f"[bold red][!][/bold red] Invalid hostname: {target_name}.")
+        raise typer.BadParameter(f"[bold red][!][/bold red] Invalid hostname: {target_name}")
 
     process_time = time.perf_counter()
 
@@ -193,17 +195,45 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
         except KeyboardInterrupt:
             stop.set()
 
-        if stop.is_set():
-            console.print(f"[bold red][!][/bold red] Traceroute interrupted! Time elapsed: {int(time.perf_counter() - process_time)}s")
-        
-        else:
-            console.print(f"[bold green][+][/bold green] Scan completed! Time elapsed: {int(time.perf_counter() - process_time)}s")
+    if stop.is_set():
+        console.print(f"[bold red][!][/bold red] Traceroute interrupted! Time elapsed: {int(time.perf_counter() - process_time)}s")
+    else:
+        console.print(f"[bold green][+][/bold green] Scan completed! Time elapsed: {int(time.perf_counter() - process_time)}s")
 
-    # need to parse these results...
-    console.print(results)
+
+    if not results:
+        console.print("[bold red][!][/bold red] No results found.")
+    else: 
+        for ttl in sorted(results.keys()):
+            hop = results[ttl]
+
+            if hop['ip'] is None:
+                console.print(f"[bold yellow]\\[i][/bold yellow] Hop {ttl} - [bold]REQUEST TIMED OUT![/bold]\n")
+                continue
+
+            location = hop.get("location") or {}
+            location_lines = ""
+            
+            if location.get("status") == "success":
+                location_lines = (
+                    f"\t- Location: {location.get("city", "")}, {location.get("regionName", "")}, {location.get("country", "")}\n"
+                    f"\t- Coordinates: {location.get("lat", "")}, {location.get("lon", "")}\n"
+                    f"\t- ISP: {location.get("isp", "")}"
+                )
+
+            # Print hop info
+            console.print(f"[bold green][+][/bold green] Hop {ttl}")
+            console.print(f"\t- IP: {hop['ip']}")
+            console.print(f"\t- RTT: {', '.join(hop['rtt'])}")
+            console.print(f"\t- Hostname: {hop['hostname']}")
+            console.print(f"\t- Private IP: {'Yes' if hop['is_private'] else 'No'}")
+
+            if location_lines:
+                console.print(location_lines)
+
+            console.print()  # Extra newline between hops
 
 
 
 if __name__ == '__main__':
     pass
-    
