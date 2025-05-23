@@ -31,9 +31,9 @@ def app_network_scanner(target: Annotated[str, Argument(help="Target IP range.")
                     retries: Annotated[int, Option("--retries", "-r", help="Max. retries per host.")] = 0,
                     timeout: Annotated[int, Option("--timeout", "-to", help="Timeout for waiting a reply (seconds).")] = 1,
                     udp: Annotated[bool, Option("--udp", "-sU", help="UDP scan.")] = False,
-                    tcp_ack: Annotated[bool, Option("--tcp-ack", "-sTA", help="TCP ACK scan.")] = False,
-                    local_tcp_syn: Annotated[bool, Option("--tcp-syn", "-sTS", help="Use TCP SYN scan on local networks.")] = False,
-                    force_scan: Annotated[bool, Option("--force", "-f", help="Force all scans even if host was already found.")] = False,
+                    tcp_ack: Annotated[bool, Option("--tcpack", "-sTA", help="TCP ACK scan.")] = False,
+                    local_tcp_syn: Annotated[bool, Option("--tcpsyn", "-sTS", help="Use TCP SYN scan on local networks.")] = False,
+                    force_scan: Annotated[bool, Option("--force", "-f", help="Force all scans even if a host was already found.")] = False,
                     stealth: Annotated[bool, Option("--stealth", "-sS", help="Slower scanners to avoid detection (disable ICMP scans).")] = False,
                     threads: Annotated[int, Option("--threads", "-t", help="Max. threads for the scanner process.")] = 100):
     """Discover hosts on a network (ARP + ICMP for local networks and ICMP + TCP SYN on common ports for remote)."""
@@ -46,7 +46,7 @@ def app_traceroute(target: Annotated[str, Argument(help="Target IP/domain.")] = 
                 max_hops: Annotated[int, Option("--hops", "-h", help="Max. amount of hops.")] = 30,
                 gen_map: Annotated[bool, Option("--map", "-m", help="Receive results in a dynamic map.")] = False,
                 save_file: Annotated[bool, Option("--save", "-s", help="Save map in an HTML file.")] = False):
-    """Trace the path of your packets with a map."""
+    """Trace the path of your packets."""
     traceroute.tracerouteWithMap(target, timeout, max_hops, gen_map, save_file)
 
 
