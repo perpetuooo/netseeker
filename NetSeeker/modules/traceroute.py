@@ -6,6 +6,7 @@ import folium
 import tempfile
 import webbrowser
 from threading import Event
+from ipaddress import ip_address
 from scapy.all import IP, UDP, ICMP, sr1
 from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
 
@@ -51,7 +52,7 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
                     hop_info['rtt'].append(f"{round(rtt)}ms")
 
                     # Results depends if there is an IP and if it is public.
-                    if reply.src is not None and info.check_ipv4(reply.src) is True:
+                    if reply.src is not None and ip_address(reply.src).is_global:
                         hop_info['hostname'] = info.get_hostname(reply.src)
                         hop_info['is_private'] = False
                         hop_info['location'] = info.get_geolocation(reply.src)
@@ -163,17 +164,16 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
     stop = Event()
     results = {}
     
-    # Get IP if the target is a domain.
+    # Verify target.
     try:
-        if target.endswith(".com"):
-            target = socket.gethostbyname(target)
-            target_name = f"{target_name} ({target})"
+        if (resolved := info.resolve_domain(target)):   # Resolve IP if the target is a domain.
+            target_name = f"{target} ({resolved})"
 
-        if not info.check_ipv4(target):
-            raise typer.BadParameter(f"[bold red][!][/bold red] Invalid hostname: {target_name}") 
+        elif not info.check_ip(target) and ip_address(target).is_global:
+            raise typer.BadParameter(f"[bold red][!][/bold red] Invalid hostname: {target}") 
 
     except socket.gaierror:
-        raise typer.BadParameter(f"[bold red][!][/bold red] Invalid hostname: {target_name}")
+        raise typer.BadParameter(f"[bold red][!][/bold red] Invalid hostname: {target}")
 
     process_time = time.perf_counter()
 

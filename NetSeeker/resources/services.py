@@ -1,4 +1,5 @@
 import os
+import re
 import socket
 import pathlib
 import requests
@@ -58,7 +59,7 @@ class DevicesInfo:
             result = requests.get('http://ip-api.com/json?fields=20705279')
 
         else:
-            if target.endswith(".com"):
+            if re.match(r'(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]', target, re.IGNORECASE):
                 target = socket.gethostbyname(target)
 
             result = requests.get(f'http://ip-api.com/json/{target}?fields=20705279')
@@ -79,12 +80,10 @@ class DevicesInfo:
 
 
     # Checks if the given IP address is a valid public IPv4 address.
-    def check_ipv4(self, ip):
+    def check_ip(self, ip):
         try:
-            target = ipaddress.ip_address(ip)
-            
-            return False if target.is_private else True
-        
+            ipaddress.ip_address(ip)
+            return True
         except ValueError:
             return False
 
@@ -127,6 +126,15 @@ class DevicesInfo:
         else:
             return os.path.join(Path.home(), "Desktop")
 
+
+    # Resolves a domain into an IP address.
+    def resolve_domain(self, target):
+        if re.match(r'(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]', target, re.IGNORECASE):
+            try:
+                return socket.gethostbyname(target)
+            
+            except socket.gaierror:
+                raise
 
 
 
