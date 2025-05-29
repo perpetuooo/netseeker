@@ -30,7 +30,7 @@ def portScanner(target, ports, timeout, udp, threads, bg):
             try:
                 # Update the progress description to show the current port.
                 with progress_lock:
-                    progress.update(task_id, description=f"Scanning port {port}")
+                    progress.update(task_id, description=f"Scanning port [yellow]{port}[/yellow]")
 
                 # Create and send a TCP socket.
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)    

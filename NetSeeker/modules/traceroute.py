@@ -182,7 +182,7 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
         TextColumn("[progress.description]{task.description}"),
         transient=True,
     ) as progress:
-        task_id:TaskID = progress.add_task(f"Tracerouting to {target_name}", total=max_hops)
+        task_id:TaskID = progress.add_task(f"Tracerouting to [yellow]{target_name}[yellow]", total=max_hops)
 
         try:
             tracert()

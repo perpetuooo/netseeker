@@ -134,7 +134,7 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
         try:
             # Update the progress description to show the current host.
             with progress_lock:
-                progress.update(task_id, description=f"Scanning host {host}")
+                progress.update(task_id, description=f"Scanning host [yellow]{host}[/yellow]")
 
             host_responded = False
             host_data = {
