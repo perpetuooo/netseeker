@@ -1,5 +1,4 @@
 import os
-import sys
 import time
 import typer
 import socket
@@ -150,8 +149,7 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
             m.fit_bounds([locations[0], locations[-1]])
 
         if save_file:
-            desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
-            filepath = os.path.join(desktop_path, f"traceroute-{target_name}_{time.strftime('%d-%m-%Y_%H-%M-%S',time.localtime())}.html")
+            filepath = os.path.join(info.get_desktop_path(), f"traceroute-{target}_{time.strftime('%d-%m-%Y_%H-%M-%S',time.localtime())}.html")
             m.save(filepath)
             webbrowser.open(f"file://{filepath}")
         else:
@@ -231,7 +229,7 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
             if location_lines:
                 console.print(location_lines)
 
-            console.print()  # Extra newline between hops
+            console.print()  # Extra newline between hops.
 
 
 

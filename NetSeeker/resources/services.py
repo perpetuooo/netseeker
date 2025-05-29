@@ -1,8 +1,13 @@
-import ipaddress
+import os
 import socket
+import pathlib
 import requests
-import scapy.all as scapy
+import platform
+import ipaddress
 import netifaces
+import subprocess
+import scapy.all as scapy
+from pathlib import Path
 
 class DevicesInfo:
     # Sends an ICMP echo request to the target host and checks for a reply.
@@ -82,6 +87,46 @@ class DevicesInfo:
         
         except ValueError:
             return False
+
+
+    # Gets user desktop path.
+    def get_desktop_path(self):
+        system = platform.system()
+
+        if system == "Windows":
+            # Use Windows API to get the real Desktop path.
+            from ctypes import wintypes, windll, create_unicode_buffer
+
+            CSIDL_DESKTOP = 0  # Desktop
+            SHGFP_TYPE_CURRENT = 0
+
+            buf = create_unicode_buffer(wintypes.MAX_PATH)
+
+            if windll.shell32.SHGetFolderPathW(None, CSIDL_DESKTOP, None, SHGFP_TYPE_CURRENT, buf) == 0:
+                return buf.value
+            else:
+                return os.path.join(Path.home(), "Desktop")
+
+        elif system == "Linux":
+            try:
+                # Try using xdg-user-dir (works if available).
+                desktop = subprocess.check_output(["xdg-user-dir", "DESKTOP"]).decode().strip()
+
+                if os.path.isdir(desktop):
+                    return desktop
+            except Exception:
+                pass
+            
+            desktop = os.path.join(pathlib.Path.home(), "Desktop")
+
+            if os.path.isdir(desktop):
+                return desktop
+            return str(Path.home())  # Fallback: ~/home
+        
+        # macOS or other.
+        else:
+            return os.path.join(Path.home(), "Desktop")
+
 
 
 
