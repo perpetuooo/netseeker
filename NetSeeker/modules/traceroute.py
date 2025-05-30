@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import typer
 import socket
@@ -164,16 +165,13 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
     stop = Event()
     results = {}
     
-    # Verify target.
-    try:
-        if (resolved := info.resolve_domain(target)):   # Resolve IP if the target is a domain.
-            target_name = f"{target} ({resolved})"
+    # Resolve IP if the target is a domain.
+    if info.check_domain(target):
+        target_name = f"{target} ({socket.gethostbyname(target)})"
 
-        elif not info.check_ip(target) and ip_address(target).is_global:
-            raise typer.BadParameter(f"[bold red][!][/bold red] Invalid hostname: {target}") 
-
-    except socket.gaierror:
-        raise typer.BadParameter(f"[bold red][!][/bold red] Invalid hostname: {target}")
+    # If it is an IP, verify if its a valid address.
+    elif not info.check_ip(target) and ip_address(target).is_global:
+        raise typer.BadParameter(f"[bold red][!][/bold red] Invalid target: {target}") 
 
     process_time = time.perf_counter()
 

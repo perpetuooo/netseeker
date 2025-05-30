@@ -88,6 +88,11 @@ class DevicesInfo:
             return False
 
 
+    # Checks if the given domain is a valid address.
+    def check_domain(self, domain):
+        return bool(re.match(r'^(?=.{1,253}$)(?!-)([a-zA-Z0-9]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}$', domain))
+
+
     # Gets user desktop path.
     def get_desktop_path(self):
         system = platform.system()
@@ -125,16 +130,6 @@ class DevicesInfo:
         # macOS or other.
         else:
             return os.path.join(Path.home(), "Desktop")
-
-
-    # Resolves a domain into an IP address.
-    def resolve_domain(self, target):
-        if re.match(r'(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]', target, re.IGNORECASE):
-            try:
-                return socket.gethostbyname(target)
-            
-            except socket.gaierror:
-                raise
 
 
 
