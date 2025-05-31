@@ -221,6 +221,9 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
                 except KeyboardInterrupt:
                     stop.set()
 
+                    with progress_lock:
+                        progress.update(task_id, description="Stopping scanner, waiting for threads to finish...")
+
     except KeyboardInterrupt:
         stop.set()
         

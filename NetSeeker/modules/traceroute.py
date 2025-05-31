@@ -6,7 +6,7 @@ import socket
 import folium
 import tempfile
 import webbrowser
-from threading import Event
+from threading import Event, Lock
 from ipaddress import ip_address
 from scapy.all import IP, UDP, ICMP, sr1
 from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
@@ -36,6 +36,9 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
                 'is_private': None,
                 'location': None,
             }
+
+            with progress_lock:
+                progress.update(task_id, description=f"Tracerouting to [yellow]{target_name}[/yellow] - Hop {ttl}")
             
             # Sends 3 packets per hop (as default in traceroutes).
             for attempt in range(3):
@@ -78,7 +81,9 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
 
 
     def create_map():
-        progress.update(task_id, description="Generating map...")
+        with progress_lock:
+            progress.update(task_id, description="Generating map...")
+
         m = folium.Map(world_copy_jump=True)
         locations = []
 
@@ -151,10 +156,16 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
             m.fit_bounds([locations[0], locations[-1]])
 
         if save_file:
+            with progress_lock:
+                progress.update(task_id, description="Saving file...")
+
             filepath = os.path.join(info.get_desktop_path(), f"traceroute-{target}_{time.strftime('%d-%m-%Y_%H-%M-%S',time.localtime())}.html")
             m.save(filepath)
             webbrowser.open(f"file://{filepath}")
         else:
+            with progress_lock:
+                progress.update(task_id, description="Opening file...")
+
             with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
                 m.save(f.name)
                 webbrowser.open(f"file://{f.name}")
@@ -163,6 +174,7 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
     target_name = target
     info = services.DevicesInfo()
     stop = Event()
+    progress_lock = Lock()
     results = {}
     
     # Resolve IP if the target is a domain.
@@ -191,11 +203,13 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
         except KeyboardInterrupt:
             stop.set()
 
+            with progress_lock:
+                progress.update(task_id, description="Stopping traceroute...")
+
     if stop.is_set():
         console.print(f"[bold red][!][/bold red] Traceroute interrupted! Time elapsed: {int(time.perf_counter() - process_time)}s")
     else:
         console.print(f"[bold green][+][/bold green] Scan completed! Time elapsed: {int(time.perf_counter() - process_time)}s")
-
 
     if not results:
         console.print("[bold red][!][/bold red] No results found.")
