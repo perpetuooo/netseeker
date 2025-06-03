@@ -14,7 +14,6 @@ from resources import console
 
 """
 TODO: 
-- Add support for UDP scanning in addition to TCP
 - Add support to IPv6
 - Implement a better banner grabbing technique
 - Create a stealth scan alternative
@@ -28,10 +27,6 @@ def portScanner(target, ports, timeout, udp, threads, bg):
             if stop.is_set(): return
 
             try:
-                # Update the progress description to show the current port.
-                with progress_lock:
-                    progress.update(task_id, description=f"Scanning port [yellow]{port}[/yellow]")
-
                 # Create and send a TCP socket.
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)    
                 socket.setdefaulttimeout(timeout)
@@ -72,10 +67,6 @@ def portScanner(target, ports, timeout, udp, threads, bg):
             if stop.is_set(): return
 
             try:
-                # Update the progress description to show the current port.
-                with progress_lock:
-                    progress.update(task_id, description=f"Scanning port {port}")
-                
                 # Create and send a UDP socket.
                 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 sock.settimeout(timeout)
@@ -113,7 +104,11 @@ def portScanner(target, ports, timeout, udp, threads, bg):
             finally:
                 progress.update(task_id, advance=1)
                 sock.close()
+
           
+        # Update the progress description to show the current port.
+        with progress_lock:
+            progress.update(task_id, description=f"Scanning port {port}")
 
         if udp:
             udp_scan()
@@ -125,6 +120,8 @@ def portScanner(target, ports, timeout, udp, threads, bg):
     def parse_ports(ports: str) -> List[int]:
         parsed_ports: Set[int] = set()  # Using set to dismiss duplicate ports.
 
+        if ports == 'all': ports = '1-65535'
+
         for part in ports.split(","):
             part = part.strip()
 
@@ -132,8 +129,7 @@ def portScanner(target, ports, timeout, udp, threads, bg):
                 try:
                     start, end = map(int, part.split("-"))
 
-                    if end > 65535:     #Max ports.
-                        end = 65535
+                    if end > 65535: end = 65535    #Max ports.
 
                     parsed_ports.update(range(start, end + 1))
 

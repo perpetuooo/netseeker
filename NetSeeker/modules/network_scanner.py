@@ -143,12 +143,15 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
                 'scans': []
             }
 
+            # ARP for local networks.
             if local_network:
                 arp_scan()
-                
+            
+            # ICMP for local/remote networks if stealth scan is disabled (only if the host was not found or force_scan is enabled).
             if not stealth and (not host_responded or force_scan):
                 icmp_scan()
 
+            # TCP SYN scan for remote networks or local networks if local_tcp_syn is enabled (only if the host was not found or force_scan is enabled).
             if (not local_network) or (local_network and local_tcp_syn and (not host_responded or force_scan)):
                 tcp_syn_scan()
 
