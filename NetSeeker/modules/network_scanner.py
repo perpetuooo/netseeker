@@ -1,7 +1,6 @@
 import sys
 import time
 import random
-import typer
 import logging
 
 from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
@@ -9,8 +8,9 @@ from scapy.all import ARP, Ether, IP, srp, RandMAC, ICMP, sr1, TCP
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from ipaddress import IPv4Network
 from threading import Event, Lock
-from rich.table import Table
 from scapy.config import conf
+from rich.table import Table
+from rich import box
 
 from resources import console
 from resources import services
@@ -24,7 +24,7 @@ TODO:
 - Add a verbose option?
 """
 
-def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, force_scan):
+def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, force_scan, verbose):
     
     def scanner(host):
 
@@ -32,8 +32,6 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
             nonlocal host_responded
             
             try:
-                if stop.is_set(): return
-
                 arp_pkt = Ether(dst="ff:ff:ff:ff:ff:ff", src=(RandMAC() if stealth else None))/ARP(pdst=str(host))
                 response = None
 
@@ -59,15 +57,12 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
                 return
             
             except Exception as e:
-                #if verbose:
-                console.print(f"[bold red][!][/bold red] ARP SCAN ERROR: {str(e)}")
+                progress.console.print(f"[bold red][!][/bold red] ARP SCAN ERROR: {str(e)}")
 
         def icmp_scan():
             nonlocal host_responded
 
             try:
-                if stop.is_set(): return
-
                 icmp_echo = IP(dst=str(host))/ICMP()
                 response = None
 
@@ -88,8 +83,7 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
                 return
             
             except Exception as e:
-                #if verbose:
-                console.print(f"[bold red][!][/bold red] ICMP SCAN ERROR: {str(e)}")
+                progress.console.print(f"[bold red][!][/bold red] ICMP SCAN ERROR: {str(e)}")
             
         def tcp_syn_scan():
             nonlocal host_responded
@@ -127,11 +121,12 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
                 return
             
             except Exception as e:
-                #if verbose:
-                console.print(f"[bold red][!][/bold red] TCP SYN SCAN ERROR: {str(e)}")
+                progress.console.print(f"[bold red][!][/bold red] TCP SYN SCAN ERROR: {str(e)}")
 
 
         try:
+            if stop.is_set(): return
+
             # Update the progress description to show the current host.
             with progress_lock:
                 progress.update(task_id, description=f"Scanning host [yellow]{host}[/yellow]")
@@ -155,15 +150,12 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
             if (not local_network) or (local_network and local_tcp_syn and (not host_responded or force_scan)):
                 tcp_syn_scan()
 
-            if stop.is_set(): return
-
             # Append results.
             if host_responded:
+                if verbose:
+                    progress.console.print(f"[bold green][+][/bold green] Host found: {host}")
+
                 found_hosts[host] = host_data
-        
-        except Exception as e:
-            console.print(f"[bold red][!][/bold red] ERROR: {str(e)}")
-            raise typer.Exit(1)
 
         except KeyboardInterrupt:
             stop.set()
@@ -175,7 +167,7 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
 
     found_hosts = {}    # IP as key, hostname and MAC as values.
     info = services.DevicesInfo()
-    table = Table("Hostname", "IP", "MAC", ("Scans" if force_scan else "Scan"))
+    table = Table("HOSTNAME", "IP", "MAC", ("SCANS" if force_scan else "SCAN"), box=box.MARKDOWN)
     stop = Event()
     progress_lock = Lock()
 
@@ -238,14 +230,13 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
 
 
     for ip_addr, data in found_hosts.items():
-        scans_list = data.get('scans', []) if force_scan else data.get('scans', [])
-        table.add_row(data['hostname'], ip_addr, data['mac'], ", ".join(map(str, scans_list)))
+        table.add_row(data['hostname'], ip_addr, data['mac'], ", ".join(map(str, data.get('scans', []))))
 
     if table.row_count == 0:
-        console.print(f"\n[bold red][!][/bold red] No hosts found on [bold]{target}[/bold] network.")
+        console.print(f"[bold red][!][/bold red] No hosts found on [bold]{target}[/bold] network.")
 
     else:
-        console.print(f"\n[bold yellow]\\[i][/bold yellow] Found {table.row_count} hosts: ")
+        console.print(f"[bold yellow]\\[i][/bold yellow] Found {table.row_count} hosts: ")
         console.print(table)
 
 

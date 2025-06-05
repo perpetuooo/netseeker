@@ -21,9 +21,10 @@ def app_port_scanner(target: Annotated[str, Argument(help="Target IP/domain.")] 
                     timeout: Annotated[int, Option("--timeout", "-t", help="Timeout for waiting a reply (seconds).")] = 1,
                     udp: Annotated[bool, Option("--udp", "-sU", help="Enable UDP scan.")] = False,
                     banner: Annotated[bool, Option("--banner", "-b", help="Enable banner grabbing for open ports, attempting to identify the service and version.")] = False,
+                    verbose: Annotated[bool, Option("--verbose", "-v", help="Enable verbose. Print results as the scanner goes on.")] = False,
                     threads: Annotated[int, Option("--threads", "-T", help="Max. ammount of concurrent threads for the scanner process.")] = 100):
     """Scans a target IP address or domain for open TCP and/or UDP ports."""
-    port_scanner.portScanner(target, ports, timeout, udp, threads, banner)
+    port_scanner.portScanner(target, ports, timeout, udp, threads, banner, verbose)
 
 
 @app.command("netscan")
@@ -35,9 +36,10 @@ def app_network_scanner(target: Annotated[str, Argument(help="Target IP range (e
                     local_tcp_syn: Annotated[bool, Option("--local-tcp-syn", "-sTS", help="Performs a TCP SYN scan on local networks.")] = False,
                     force_scan: Annotated[bool, Option("--force", "-f", help="Force all scans even if a host was already found.")] = False,
                     stealth: Annotated[bool, Option("--stealth", "-sS", help="Enables slower scanning methods and disables aggressive techniques to reduce the likelihood of detection (disables ICMP scans).")] = False,
+                    verbose: Annotated[bool, Option("--verbose", "-v", help="Enable verbose. Print results as the scanner goes on.")] = False,
                     threads: Annotated[int, Option("--threads", "-T", help="Max. ammount of concurrent threads for the scanner process.")] = 100):
     """Discover hosts on a network (ARP + ICMP for local networks and ICMP + TCP SYN on common ports for remote)."""
-    network_scanner.networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, force_scan)
+    network_scanner.networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, force_scan, verbose)
 
 
 @app.command("traceroute")

@@ -1,10 +1,10 @@
-import sys
 import time
 import typer
 import socket
 from threading import Event, Lock
 from rich.table import Table
 from rich.panel import Panel
+from rich import box
 from typing import List, Set
 from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -19,15 +19,72 @@ TODO:
 - Create a stealth scan alternative
 """
 
-def portScanner(target, ports, timeout, udp, threads, bg):
+def portScanner(target, ports, timeout, udp, threads, bg, verbose):
 
     def scanner(port):
 
-        def tcp_scan():
-            if stop.is_set(): return
-
+        def banner_grabbing():
             try:
-                # Create and send a TCP socket.
+                banner = sock.recv(1024).decode().strip()   # Receive up to 1024 bytes for the banner.
+                banners[port] = banner
+
+            except Exception:
+                pass
+
+
+        if stop.is_set(): return
+
+        # Update the progress description to show the current port.
+        with progress_lock:
+            progress.update(task_id, description=f"Scanning port {port}")
+
+        # UDP scanner.
+        if udp:
+            try:
+                # Create a UDP socket and send an empty packet.
+                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                sock.settimeout(timeout)
+                sock.sendto(b"",(target, port))
+
+                try:
+                    sock.recvfrom(1024)
+                    # If there is any response, it might be open or filtered.
+                    port_service = socket.getservbyport(port)
+                    if verbose: progress.console.print( f"[bold green][+][/bold green] Port [green]{port}[/green] is [bold]OPEN|FILTERED[/bold].")
+                    if bg: banner_grabbing()
+                    table.add_row(str(port) + "/udp", "OPEN|FILTERED", (port_service or "NOT FOUND"))
+
+                # No response within timeout could also mean it might be open/filtered.
+                except socket.timeout:
+                    port_service = socket.getservbyport(port, "udp")
+                    if verbose: progress.console.print( f"[bold green][+][/bold green] Port [green]{port}[/green] is [bold]OPEN|FILTERED[/bold].")
+                    if bg: banner_grabbing()
+                    table.add_row(str(port) + "/udp", "OPEN|FILTERED", (port_service or "NOT FOUND"))
+
+                except socket.error as e:
+                    if e.errno == 10054 or e.errno == 149:  # ICMP Port Unreachable (Windows/Linux)
+                        pass
+                    
+                except Exception as e:
+                    if "port/proto not found" in str(e):  # Service name not found.
+                        pass
+                    else:
+                        progress.console.print(f"[bold red][!][/bold red] UDP SCAN ERROR: {str(e)}")
+                        sock.close()
+                        return None
+            
+            except KeyboardInterrupt:
+                stop.set()
+                return
+            
+            finally:
+                progress.update(task_id, advance=1)
+                sock.close()
+        
+        # TCP scanner
+        else:
+            try:
+                # Create a TCP socket and send an empty packet.
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)    
                 socket.setdefaulttimeout(timeout)
                 response = sock.connect_ex((target, port))
@@ -35,22 +92,17 @@ def portScanner(target, ports, timeout, udp, threads, bg):
                 # If the port is open, add it to the results table.
                 if response == 0:
                     port_service = socket.getservbyport(port)
+                    if verbose: progress.console.print( f"[bold green][+][/bold green] Port [green]{port}[/green] is [bold]OPEN[/bold].")
                     table.add_row(str(port), "OPEN", (port_service or "NOT FOUND"))
 
-                    if bg:  # Banner grabbing.
-                        try:
-                            banner = sock.recv(1024).decode().strip()   # Receive up to 1024 bytes for the banner.
-                            banners[port] = banner
-
-                        except Exception:
-                            banners[port] = "NOT FOUND"
+                    if bg: banner_grabbing()
                     
             except Exception as e:
                 if "port/proto not found" in str(e):  # Service name not found.
                     pass
 
                 else:
-                    console.print(f"[bold red][!][/bold red] TCP ERROR: {str(e)}")
+                    progress.console.print(f"[bold red][!][/bold red] TCP SCAN ERROR: {str(e)}")
                     sock.close()
                     return None
             
@@ -62,59 +114,6 @@ def portScanner(target, ports, timeout, udp, threads, bg):
             finally:
                 sock.close()
                 progress.update(task_id, advance=1)
-
-        def udp_scan():
-            if stop.is_set(): return
-
-            try:
-                # Create and send a UDP socket.
-                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                sock.settimeout(timeout)
-                sock.sendto(b"",(target, port))
-
-                try:
-                    data, addr = sock.recvfrom(1024)
-
-                    # If there is any response, it might be open or filtered.
-                    port_service = socket.getservbyport(port)
-                    table.add_row(str(port) + "/udp", "OPEN|FILTERED", (port_service or "NOT FOUND"))
-
-                # No response within timeout could also mean it might be open/filtered.
-                except socket.timeout:
-                    port_service = socket.getservbyport(port, "udp")
-                    table.add_row(str(port) + "/udp", "OPEN|FILTERED", (port_service or "NOT FOUND"))
-            
-                except socket.error as e:
-                    if e.errno == 10054 or e.errno == 149:  # ICMP Port Unreachable (Windows/Linux)
-                        pass
-                    
-            except Exception as e:
-                if "port/proto not found" in str(e):  # Service name not found.
-                    pass
-                
-                else:
-                    console.print(f"[bold red][!][/bold red] UDP ERROR: {str(e)}")
-                    sock.close()
-                    return None
-            
-            except KeyboardInterrupt:
-                stop.set()
-                return None
-            
-            finally:
-                progress.update(task_id, advance=1)
-                sock.close()
-
-          
-        # Update the progress description to show the current port.
-        with progress_lock:
-            progress.update(task_id, description=f"Scanning port {port}")
-
-        if udp:
-            udp_scan()
-        
-        else:
-            tcp_scan()
         
 
     def parse_ports(ports: str) -> List[int]:
@@ -152,22 +151,23 @@ def portScanner(target, ports, timeout, udp, threads, bg):
                 banner,
                 title=f"Port {port}",
                 padding=(1, 2),
+                box=box.ASCII
         ))
 
 
     info = services.DevicesInfo()
-    table = Table("Port", "State", "Service")
+    table = Table("PORT", "STATE", "SERVICE", box=box.MARKDOWN)
     stop = Event()
     progress_lock = Lock()
     banners = {}
 
     # Check if the target is reachable by sending him a ICMP echo request.
-    if info.ping(target):
-        console.print(f"[bold green][+][/bold green] Host [bold]{target}[/bold] is up!")
+    if target == '127.0.0.1' or info.ping(target):
+        console.print(f"[bold green][+][/bold green] Host [yellow]{target}[/yellow] is up!")
 
     else:
-        console.print(f"[bold red][!][/bold red] Host [bold]{target}[/bold] is down, exiting...")
-        sys.exit()
+        console.print(f"[bold red][!][/bold red] Host [yellow]{target}[/yellow] is down, exiting...")
+        typer.Exit(1)
 
     process_time = time.perf_counter()
     parsed_ports = parse_ports(ports)
@@ -209,15 +209,18 @@ def portScanner(target, ports, timeout, udp, threads, bg):
         console.print(f"[bold green][+][/bold green] Scan completed! Time elapsed: {int(time.perf_counter() - process_time)}s")
 
     if table.row_count == 0:
-        console.print(f"\n[bold red][!][/bold red] No open ports on [bold]{target}[/bold]")
+        console.print(f"[bold red][!][/bold red] No open ports on [bold]{target}[/bold]")
 
     else:
-        console.print(f"\n[bold yellow]\\[i][/bold yellow] Found {table.row_count} open ports: ")
+        console.print(f"[bold yellow]\\[i][/bold yellow] Found {table.row_count} open ports: ")
         console.print(table)
 
-        if bg and banners:
-            console.print("\n[bold yellow]\\[i][/bold yellow] Banners: ")
-            display_banners(banners)
+        if bg:
+            if banners:
+                console.print("[bold yellow]\\[i][/bold yellow] Banners found: ")
+                display_banners(banners)
+            else:
+                console.print("[bold red][!][/bold red] No banner was found.")
 
 
 
