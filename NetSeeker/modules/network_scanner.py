@@ -1,5 +1,5 @@
-import sys
 import time
+import typer
 import random
 import logging
 
@@ -11,6 +11,7 @@ from threading import Event, Lock
 from scapy.config import conf
 from rich.table import Table
 from rich import box
+
 
 from resources import console
 from resources import services
@@ -57,7 +58,7 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
                 return
             
             except Exception as e:
-                progress.console.print(f"[bold red][!][/bold red] ARP SCAN ERROR: {str(e)}")
+                progress.console.print(f"[bold red][!] ARP SCAN ERROR:[/bold red] {str(e)}")
 
         def icmp_scan():
             nonlocal host_responded
@@ -83,7 +84,7 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
                 return
             
             except Exception as e:
-                progress.console.print(f"[bold red][!][/bold red] ICMP SCAN ERROR: {str(e)}")
+                progress.console.print(f"[bold red][!] ICMP SCAN ERROR:[/bold red] {str(e)}")
             
         def tcp_syn_scan():
             nonlocal host_responded
@@ -121,7 +122,7 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
                 return
             
             except Exception as e:
-                progress.console.print(f"[bold red][!][/bold red] TCP SYN SCAN ERROR: {str(e)}")
+                progress.console.print(f"[bold red][!] TCP SYN SCAN ERROR:[/bold red] {str(e)}")
 
 
         try:
@@ -185,8 +186,8 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
     try:
         network = IPv4Network(target)
     except ValueError:
-        console.print(f"[bold red][!][/bold red] Invalid target: {target}")
-        sys.exit(1)
+        console.print(f"[bold red][!] ERROR:[/bold red] Invalid target specified: {target}")
+        typer.exit(code=1)
     
     # Create a list of all hosts in the network.
     hosts = [str(ip) for ip in network.hosts()]

@@ -69,7 +69,7 @@ def portScanner(target, ports, timeout, udp, threads, bg, verbose):
                     if "port/proto not found" in str(e):  # Service name not found.
                         pass
                     else:
-                        progress.console.print(f"[bold red][!][/bold red] UDP SCAN ERROR: {str(e)}")
+                        progress.console.print(f"[bold red][!] UDP SCAN ERROR:[/bold red] {str(e)}")
                         sock.close()
                         return None
             
@@ -102,7 +102,7 @@ def portScanner(target, ports, timeout, udp, threads, bg, verbose):
                     pass
 
                 else:
-                    progress.console.print(f"[bold red][!][/bold red] TCP SCAN ERROR: {str(e)}")
+                    progress.console.print(f"[bold red][!] TCP SCAN ERROR:[/bold red] {str(e)}")
                     sock.close()
                     return None
             
@@ -124,23 +124,20 @@ def portScanner(target, ports, timeout, udp, threads, bg, verbose):
         for part in ports.split(","):
             part = part.strip()
 
-            if "-" in part: # Handle port ranges (e.g., "1-1024").
-                try:
+            try:
+                if "-" in part: # Handle port ranges (e.g., "1-1024").
                     start, end = map(int, part.split("-"))
 
                     if end > 65535: end = 65535    #Max ports.
 
                     parsed_ports.update(range(start, end + 1))
-
-                except ValueError:
-                    raise typer.BadParameter(f"[bold red][!][/bold red] Invalid port range: {part}")
-            
-            else:   # Handle single ports.
-                try:
+                # Handle single ports.
+                else:
                     parsed_ports.add(int(part))
 
-                except ValueError:
-                    raise typer.BadParameter(f"[bold red][!][/bold red] Invalid port: {part}")
+            except ValueError:
+                    console.print(f"[bold red][!] ERROR:[/bold red] Invalid port range specified: {part}")
+                    raise typer.Exit(code=1)
 
         return sorted(parsed_ports)
 
