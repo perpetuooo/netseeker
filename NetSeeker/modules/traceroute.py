@@ -22,7 +22,7 @@ TODO:
 def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
 
     def tracert():
-        dest_reached = False
+        global dest_reached; dest_reached = False
 
         # Increase TTL for each hop.
         for ttl in range(1, max_hops + 1):
@@ -38,7 +38,7 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
             }
 
             with progress_lock:
-                progress.update(task_id, description=f"Tracerouting to [yellow]{target_name}[/yellow] - Hop {ttl}")
+                progress.update(task_id, description=f"Tracerouting to [yellow]{target_name}[/yellow]")
             
             # Sends 3 packets per hop (as default in traceroutes).
             for attempt in range(3):
@@ -54,15 +54,13 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
                 if reply:
                     hop_info['ip'] = reply.src  # Router IP.
                     hop_info['rtt'].append(f"{round(rtt)}ms")
+                    hop_info['hostname'] = info.get_hostname(reply.src)
 
                     # Results depends if there is an IP and if it is public.
                     if reply.src is not None and ip_address(reply.src).is_global:
-                        hop_info['hostname'] = info.get_hostname(reply.src)
                         hop_info['is_private'] = False
                         hop_info['location'] = info.get_geolocation(reply.src)
-                    
                     else:
-                        hop_info['hostname'] = None
                         hop_info['is_private'] = True
                         hop_info['location'] = None
 
@@ -78,6 +76,32 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
                 results[ttl] = hop_info
             else:
                 results[ttl] = {"ip": None, "rtt": ['*', '*', '*'], "hostname": "Request timed out"}
+
+            # Printing results.
+            if hop_info['ip'] is None:
+                progress.console.print(f"[bold yellow]\\[i] HOP {ttl}[/bold yellow] - Request timed out.\n")
+                continue
+
+            location = hop_info.get("location") or {}
+            location_lines = ''
+            
+            if location.get("status") == "success":
+                location_lines = (
+                    f"- Location: {location.get("city", "")}, {location.get("regionName", "")}, {location.get("country", "")}\n"
+                    f"- Coordinates: {location.get("lat", "")}, {location.get("lon", "")}\n"
+                    f"- ISP: {location.get("isp", "")}"
+                )
+
+            progress.console.print(f"[bold green][+] HOP {ttl}[/bold green]")
+            progress.console.print(f"- IP: [white]{hop_info['ip']}[/white]")
+            progress.console.print(f"- RTT: {', '.join(hop_info['rtt'])}")
+            progress.console.print(f"- Hostname: [white]{hop_info['hostname']}[/white]")
+            progress.console.print(f"- Private IP: {'Yes' if hop_info['is_private'] else 'No'}")
+
+            if location_lines:
+                progress.console.print(f"[white]{location_lines}[/white]")
+
+            progress.console.print()  # Extra newline between hops.
 
 
     def create_map():
@@ -181,9 +205,10 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
     if info.check_domain(target):
         target_name = f"{target} ({socket.gethostbyname(target)})"
 
-    # If it is an IP, verify if its a valid address.
-    elif not info.check_ip(target) and ip_address(target).is_global:
-        raise typer.BadParameter(f"[bold red][!][/bold red] Invalid target: {target}") 
+    # If it is an IP, verify if its a valid public address.
+    elif not info.check_ip(target) or not ip_address(target).is_global:
+        console.print(f"[bold red][!] ERROR:[/bold red] Invalid target specified: {target}")
+        raise typer.Exit(code=1)
 
     process_time = time.perf_counter()
 
@@ -192,7 +217,7 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
         TextColumn("[progress.description]{task.description}"),
         transient=True,
     ) as progress:
-        task_id:TaskID = progress.add_task(f"Tracerouting to [yellow]{target_name}[yellow]", total=max_hops)
+        task_id:TaskID = progress.add_task(f"Starting traceroute...", total=max_hops)
 
         try:
             tracert()
@@ -209,40 +234,12 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
     if stop.is_set():
         console.print(f"[bold red][!][/bold red] Traceroute interrupted! Time elapsed: {int(time.perf_counter() - process_time)}s")
     else:
-        console.print(f"[bold green][+][/bold green] Scan completed! Time elapsed: {int(time.perf_counter() - process_time)}s")
+        console.print(f"[bold green][+][/bold green] Traceroute completed! Time elapsed: {int(time.perf_counter() - process_time)}s")
 
-    if not results:
-        console.print("[bold red][!][/bold red] No results found.")
-    else: 
-        for ttl in sorted(results.keys()):
-            hop = results[ttl]
-
-            if hop['ip'] is None:
-                console.print(f"[bold yellow]\\[i][/bold yellow] Hop {ttl} - [bold]REQUEST TIMED OUT![/bold]\n")
-                continue
-
-            location = hop.get("location") or {}
-            location_lines = ""
-            
-            if location.get("status") == "success":
-                location_lines = (
-                    f"\t- Location: {location.get("city", "")}, {location.get("regionName", "")}, {location.get("country", "")}\n"
-                    f"\t- Coordinates: {location.get("lat", "")}, {location.get("lon", "")}\n"
-                    f"\t- ISP: {location.get("isp", "")}"
-                )
-
-            # Print hop info
-            console.print(f"[bold green][+][/bold green] Hop {ttl}")
-            console.print(f"\t- IP: {hop['ip']}")
-            console.print(f"\t- RTT: {', '.join(hop['rtt'])}")
-            console.print(f"\t- Hostname: {hop['hostname']}")
-            console.print(f"\t- Private IP: {'Yes' if hop['is_private'] else 'No'}")
-
-            if location_lines:
-                console.print(location_lines)
-
-            console.print()  # Extra newline between hops.
-
+    if dest_reached:
+        console.print(f"[bold green][+][/bold green] Target reached successfully at hop {len(results)}!")
+    else:
+        console.print(f"[bold red][!][/bold red] Couldn't reach target...")
 
 
 if __name__ == '__main__':
