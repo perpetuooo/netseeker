@@ -52,13 +52,26 @@ def app_traceroute(target: Annotated[str, Argument(help="Target IP/domain.")] = 
     traceroute.tracerouteWithMap(target, timeout, max_hops, gen_map, save_file)
 
 
-@app.command("arpspoofer")
-def app_arp_spoofer(target: Annotated[str, Argument(help="Target IP.")] = "",
-                host: Annotated[str, Argument(help="Target host.")] = "",
-                timing: Annotated[int, Option("--timing", "-t", help="Timing between sending packets.")] = 2,
-                verbose: Annotated[bool, Option("--verbose", "-v", help="Verbose flag.")] = 'False'):
-    """Not working (yet)."""
-    # arp_spoofer.ScapyArpSpoofer(target, host, timing, verbose)
+@app.command("sdenum")
+def app_subdomain_enumeration(target: Annotated[str, Argument(help="Target domain.")] = "",
+                            wordlist: Annotated[str, Option("--wordlist", "-w", help="Path of your own wordlist file.")] = "",
+                            output: Annotated[bool, Option("--output", "-o", help="Save results in a text file.")] = False,
+                            http_status: Annotated[bool, Option("--status", "-s", help="Check HTTP status response.")] = False,
+                            ipv6: Annotated[bool, Option("--ipv6", "-6", help="Scan for IPv6 records (AAAA).")] = False,
+                            timeout: Annotated[int, Option("--timeout", "-t", help="Timeout for waiting the DNS resolver reply (seconds).")] = 1,
+                            http_timeout: Annotated[int, Option("--http-timeout", "-th", help="Timeout for waiting the HTTP status response (seconds).")] = 1,
+                            threads: Annotated[int, Option("--threads", "-T", help="Max. ammount of concurrent threads for the scanner process.")] = 100):
+    """Discover subdomains by recursive brute forcing."""
+    sd_enum.subdomainEnumeration(target, wordlist, timeout, ipv6, http_timeout, output, http_status, threads)
+
+
+# @app.command("arpspoofer")
+# def app_arp_spoofer(target: Annotated[str, Argument(help="Target IP.")] = "",
+#                 host: Annotated[str, Argument(help="Target host.")] = "",
+#                 timing: Annotated[int, Option("--timing", "-t", help="Timing between sending packets.")] = 2,
+#                 verbose: Annotated[bool, Option("--verbose", "-v", help="Verbose flag.")] = 'False'):
+#     """Not working (yet)."""
+#     # arp_spoofer.ScapyArpSpoofer(target, host, timing, verbose)
 
 
 
