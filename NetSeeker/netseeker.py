@@ -4,6 +4,7 @@ from typing_extensions import Annotated
 from modules import port_scanner
 from modules import network_scanner
 from modules import traceroute
+from modules import sd_enum
 # from modules import arp_spoofer
 
 app = Typer(rich_markup_mode="rich")
@@ -15,6 +16,12 @@ def app_info():
     pass
 
 
+@app.command("ping")
+def app_ping():
+    """A simple redesign of the ICMP ping, with some improvements."""
+    pass
+
+
 @app.command("portscan")
 def app_port_scanner(target: Annotated[str, Argument(help="Target IP/domain.")] = "127.0.0.1",
                     ports: Annotated[str, Option("--ports", "-p", help="Ports to scan (e.g., 'x' for a single port, 'x-y' for a range, 'x,y,z' for specific ports or 'all' for all available ports).")] = "1-1024",
@@ -22,7 +29,7 @@ def app_port_scanner(target: Annotated[str, Argument(help="Target IP/domain.")] 
                     udp: Annotated[bool, Option("--udp", "-sU", help="Enable UDP scan.")] = False,
                     banner: Annotated[bool, Option("--banner", "-b", help="Enable banner grabbing for open ports, attempting to identify the service and version.")] = False,
                     verbose: Annotated[bool, Option("--verbose", "-v", help="Enable verbose. Print results as the scanner goes on.")] = False,
-                    threads: Annotated[int, Option("--threads", "-T", help="Max. ammount of concurrent threads for the scanner process.")] = 100):
+                    threads: Annotated[int, Option("--threads", "-T", help="Max. ammount of concurrent threads for the scanner process.")] = 80):
     """Scans a target IP address or domain for open TCP and/or UDP ports."""
     port_scanner.portScanner(target, ports, timeout, udp, threads, banner, verbose)
 
@@ -37,7 +44,7 @@ def app_network_scanner(target: Annotated[str, Argument(help="Target IP range (e
                     force_scan: Annotated[bool, Option("--force", "-f", help="Force all scans even if a host was already found.")] = False,
                     stealth: Annotated[bool, Option("--stealth", "-sS", help="Enables slower scanning methods and disables aggressive techniques to reduce the likelihood of detection (disables ICMP scans).")] = False,
                     verbose: Annotated[bool, Option("--verbose", "-v", help="Enable verbose. Print results as the scanner goes on.")] = False,
-                    threads: Annotated[int, Option("--threads", "-T", help="Max. ammount of concurrent threads for the scanner process.")] = 100):
+                    threads: Annotated[int, Option("--threads", "-T", help="Max. ammount of concurrent threads for the scanner process.")] = 80):
     """Discover hosts on a network (ARP + ICMP for local networks and ICMP + TCP SYN on common ports for remote)."""
     network_scanner.networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, force_scan, verbose)
 
@@ -54,15 +61,15 @@ def app_traceroute(target: Annotated[str, Argument(help="Target IP/domain.")] = 
 
 @app.command("sdenum")
 def app_subdomain_enumeration(target: Annotated[str, Argument(help="Target domain.")] = "",
-                            wordlist: Annotated[str, Option("--wordlist", "-w", help="Path of your own wordlist file.")] = "",
+                            wordlist: Annotated[str, Option("--wordlist", "-w", help="Upload the path of your own wordlist file.")] = "",
                             output: Annotated[bool, Option("--output", "-o", help="Save results in a text file.")] = False,
-                            http_status: Annotated[bool, Option("--status", "-s", help="Check HTTP status response.")] = False,
+                            http_status: Annotated[bool, Option("--status", "-s", help="Check domain for a HTTP/HTTPS status response.")] = False,
                             ipv6: Annotated[bool, Option("--ipv6", "-6", help="Scan for IPv6 records (AAAA).")] = False,
+                            mx: Annotated[bool, Option("--mx", "-m", help="Scan for mail exchange records (MX).")] = False,
                             timeout: Annotated[int, Option("--timeout", "-t", help="Timeout for waiting the DNS resolver reply (seconds).")] = 1,
-                            http_timeout: Annotated[int, Option("--http-timeout", "-th", help="Timeout for waiting the HTTP status response (seconds).")] = 1,
-                            threads: Annotated[int, Option("--threads", "-T", help="Max. ammount of concurrent threads for the scanner process.")] = 100):
-    """Discover subdomains by recursive brute forcing."""
-    sd_enum.subdomainEnumeration(target, wordlist, timeout, ipv6, http_timeout, output, http_status, threads)
+                            threads: Annotated[int, Option("--threads", "-T", help="Max. ammount of concurrent threads for the scanner process.")] = 80):
+    """Discover subdomains by recursive brute forcing (A, CNAME and NS records by default)."""
+    sd_enum.subdomainEnumeration(target, wordlist, timeout, ipv6, output, http_status, threads)
 
 
 # @app.command("arpspoofer")

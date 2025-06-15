@@ -12,16 +12,26 @@ from resources import services
 from resources import console
 
 
-def subdomainEnumeration(target, wordlist_path, timeout, ipv6, http_timeout, output, http_status, threads):
+def subdomainEnumeration(target, wordlist_path, timeout, ipv6, output, http_status, threads):
 
-    #
+    # Load wordlists for the bruteforce function.
     def load_wordlist(filepath, wordlist):
+        loaded = set(wordlist)
+
         try:
             with open(filepath, 'r') as file:
                 for line in file:
-                    wordlist.add(line.strip())
+                    subdomain = line.strip()
 
-        except Exception as e:
+                    # Verifying if it's a valid subdomain.
+                    if not subdomain or not re.match(r'[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?', subdomain):
+                        continue
+
+                    if subdomain not in loaded:
+                        loaded.add(subdomain)
+                        wordlist.append(subdomain)
+
+        except Exception:
             progress.console.print(f"[bold red][!] ERROR:[/bold red] Invalid file path for wordlist: {filepath}") 
             raise typer.Exit(code=1)
 
