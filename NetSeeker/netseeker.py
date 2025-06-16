@@ -1,5 +1,4 @@
-from typer import Typer, Argument, Option
-from typing_extensions import Annotated
+import argparse
 
 from modules import port_scanner
 from modules import network_scanner
@@ -7,80 +6,119 @@ from modules import traceroute
 from modules import sd_enum
 # from modules import arp_spoofer
 
-app = Typer(rich_markup_mode="rich")
+
+# def app_info(args):
+
+# def app_ping(args):
+
+def app_port_scanner(args):
+    port_scanner.portScanner(
+        target=args.target,
+        ports=args.ports,
+        timeout=args.timeout,
+        udp=args.udp,
+        threads=args.threads,
+        bg=args.banner,
+        verbose=args.verbose,
+    )
+
+def app_network_scanner(args):
+    network_scanner.networkScanner(
+        target=args.target,
+        retries=args.retries,
+        timeout=args.timeout,
+        threads=args.threads,
+        stealth=args.stealth,
+        local_tcp_syn=args.local_tcp_syn,
+        force_scan=args.force,
+        verbose=args.verbose,
+    )
+
+def app_traceroute(args):
+    traceroute.tracerouteWithMap(
+        target=args.target,
+        timeout=args.timeout,
+        max_hops=args.max_hops,
+        gen_map=args.generate_map,
+        save_file=args.save_file,
+    )
+
+def app_subdomain_enum(args):
+    sd_enum.subdomainEnumeration(
+        target=args.target,
+        wordlist_path=args.wordlist,
+        timeout=args.timeout,
+        ipv6=args.ipv6,
+        output=args.output,
+        http_status=args.status,
+        threads=args.threads,
+        mx=args.mx,
+    )
+
+def main():
+    parser = argparse.ArgumentParser(description="NetSeeker", prog="netseeker")
+    subparsers = parser.add_subparsers(title="Commands", dest="command")
+
+    # Info.
+    # subparsers.add_parser("info", help="Info about the project").set_defaults(func=app_info)
+
+    # Ping.
+    # subparsers.add_parser("ping", help="A simple redesign of ICMP ping").set_defaults(func=app_ping)
+
+    # Port Scanner.
+    pscan = subparsers.add_parser("portscan", help="Scans target for open TCP/UDP ports.")
+    pscan.add_argument("target", nargs='?', help="Target IP/domain.", default="127.0.0.1")
+    pscan.add_argument("--ports", "-p", help="Ports to scan (e.g., '20', '1-1024', '22,80,443', 'all').", default="1-1024")
+    pscan.add_argument("--timeout", "-t", type=int, help="Timeout for waiting a reply (seconds).", default=1)
+    pscan.add_argument("--udp", "-sU", action="store_true", help="Enable UDP scan.")
+    pscan.add_argument("--banner", "-b", action="store_true", help="Enable banner grabbing.")
+    pscan.add_argument("--verbose", "-v", action="store_true", help="Verbose output.")
+    pscan.add_argument("--threads", "-T", type=int, help="Max. ammount of threads for the scanner process.", default=80)
+    pscan.set_defaults(func=app_port_scanner)
+
+    # Network Scanner.
+    nscan = subparsers.add_parser("netscan", help="Discover hosts on a network.")
+    nscan.add_argument("target", nargs='?', help="Target IP range.", default="Connected Network")
+    nscan.add_argument("--retries", "-r", type=int, help="Max. retries per host.", default=0)
+    nscan.add_argument("--timeout", "-t", type=int, help="Timeout for waiting a reply (seconds).", default=1)
+    nscan.add_argument("--udp", "-sU", action="store_true", help="Enable UDP scan.")
+    nscan.add_argument("--tcp-ack", "-sTA", action="store_true", help="Enable TCP ACK scan.")
+    nscan.add_argument("--local-tcp-syn", "-sTS", action="store_true", help="Enable TCP SYN scan for local networks.")
+    nscan.add_argument("--force", "-f", action="store_true", help="Force all scans even if host was already found.")
+    nscan.add_argument("--stealth", "-sS", action="store_true", help="Stealth scan mode.")
+    nscan.add_argument("--verbose", "-v", action="store_true", help="Verbose output.")
+    nscan.add_argument("--threads", "-T", type=int, help="Max. ammount of threads for the scanner process.", default=80)
+    nscan.set_defaults(func=app_network_scanner)
+
+    # Traceroute.
+    trace = subparsers.add_parser("traceroute", help="Trace network path to a target.")
+    trace.add_argument("target", help="Target IP/domain.")
+    trace.add_argument("--timeout", "-t", type=int, help="Timeout per hop (seconds).", default=3)
+    trace.add_argument("--max-hops", "-m", type=int, help="Max. number of hops.", default=30)
+    trace.add_argument("--generate-map", "-g", action="store_true", help="Generate interactive map.")
+    trace.add_argument("--save-file", "-s", action="store_true", help="Save map to HTML.")
+    trace.set_defaults(func=app_traceroute)
+
+    # Subdomain Enumeration.
+    sdenum = subparsers.add_parser("sdenum", help="Subdomain enumeration with recursive brute force.")
+    sdenum.add_argument("target", help="Target domain")
+    sdenum.add_argument("--wordlist", "-w", help="Path to a new wordlist file.")
+    sdenum.add_argument("--output", "-o", action="store_true", help="Save results in a text file.")
+    sdenum.add_argument("--status", "-s", action="store_true", help="Check domain for a HTTP/HTTPS status response.")
+    sdenum.add_argument("--ipv6", "-6", action="store_true", help="Scan for IPv6 records (AAAA).")
+    sdenum.add_argument("--mx", "-m", action="store_true", help="Scan for mail exchange records (MX).")
+    sdenum.add_argument("--timeout", "-t", type=int, help="Timeout for the DNS resolver (seconds).", default=1)
+    sdenum.add_argument("--threads", "-T", type=int, help="Max. ammount of threads for the scanner process.", default=80)
+    sdenum.set_defaults(func=app_subdomain_enum)
 
 
-@app.command("info")
-def app_info():
-    """Info about the project."""
-    pass
-
-
-@app.command("ping")
-def app_ping():
-    """A simple redesign of the ICMP ping, with some improvements."""
-    pass
-
-
-@app.command("portscan")
-def app_port_scanner(target: Annotated[str, Argument(help="Target IP/domain.")] = "127.0.0.1",
-                    ports: Annotated[str, Option("--ports", "-p", help="Ports to scan (e.g., 'x' for a single port, 'x-y' for a range, 'x,y,z' for specific ports or 'all' for all available ports).")] = "1-1024",
-                    timeout: Annotated[int, Option("--timeout", "-t", help="Timeout for waiting a reply (seconds).")] = 1,
-                    udp: Annotated[bool, Option("--udp", "-sU", help="Enable UDP scan.")] = False,
-                    banner: Annotated[bool, Option("--banner", "-b", help="Enable banner grabbing for open ports, attempting to identify the service and version.")] = False,
-                    verbose: Annotated[bool, Option("--verbose", "-v", help="Enable verbose. Print results as the scanner goes on.")] = False,
-                    threads: Annotated[int, Option("--threads", "-T", help="Max. ammount of concurrent threads for the scanner process.")] = 80):
-    """Scans a target IP address or domain for open TCP and/or UDP ports."""
-    port_scanner.portScanner(target, ports, timeout, udp, threads, banner, verbose)
-
-
-@app.command("netscan")
-def app_network_scanner(target: Annotated[str, Argument(help="Target IP range (e.g., '192.168.1.0/24' or '10.0.0.1-10.0.0.254').")] = "Connected Network",
-                    retries: Annotated[int, Option("--retries", "-r", help="Max. number of retries per host.")] = 0,
-                    timeout: Annotated[int, Option("--timeout", "-t", help="Timeout for waiting a reply (seconds).")] = 1,
-                    udp: Annotated[bool, Option("--udp", "-sU", help="Enable UDP scan.")] = False,
-                    tcp_ack: Annotated[bool, Option("--tcp-ack", "-sTA", help="Enable TCP ACK scan.")] = False,
-                    local_tcp_syn: Annotated[bool, Option("--local-tcp-syn", "-sTS", help="Performs a TCP SYN scan on local networks.")] = False,
-                    force_scan: Annotated[bool, Option("--force", "-f", help="Force all scans even if a host was already found.")] = False,
-                    stealth: Annotated[bool, Option("--stealth", "-sS", help="Enables slower scanning methods and disables aggressive techniques to reduce the likelihood of detection (disables ICMP scans).")] = False,
-                    verbose: Annotated[bool, Option("--verbose", "-v", help="Enable verbose. Print results as the scanner goes on.")] = False,
-                    threads: Annotated[int, Option("--threads", "-T", help="Max. ammount of concurrent threads for the scanner process.")] = 80):
-    """Discover hosts on a network (ARP + ICMP for local networks and ICMP + TCP SYN on common ports for remote)."""
-    network_scanner.networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, force_scan, verbose)
-
-
-@app.command("traceroute")
-def app_traceroute(target: Annotated[str, Argument(help="Target IP/domain.")] = "",
-                timeout: Annotated[int, Option("--timeout", "-t", help="Timeout for receiving packets (seconds).")] = 3,
-                max_hops: Annotated[int, Option("--max-hops", "-m", help="Max. amount of hops.")] = 30,
-                gen_map: Annotated[bool, Option("--generate-map", "-g", help="Generate an interactive map visualizing the traceroute path.")] = False,
-                save_file: Annotated[bool, Option("--save-file", "-s", help="Save the generated map to an HTML file.")] = False):
-    """Traces the network path that yours IP packets take to reach a target host."""
-    traceroute.tracerouteWithMap(target, timeout, max_hops, gen_map, save_file)
-
-
-@app.command("sdenum")
-def app_subdomain_enumeration(target: Annotated[str, Argument(help="Target domain.")] = "",
-                            wordlist: Annotated[str, Option("--wordlist", "-w", help="Upload the path of your own wordlist file.")] = "",
-                            output: Annotated[bool, Option("--output", "-o", help="Save results in a text file.")] = False,
-                            http_status: Annotated[bool, Option("--status", "-s", help="Check domain for a HTTP/HTTPS status response.")] = False,
-                            ipv6: Annotated[bool, Option("--ipv6", "-6", help="Scan for IPv6 records (AAAA).")] = False,
-                            mx: Annotated[bool, Option("--mx", "-m", help="Scan for mail exchange records (MX).")] = False,
-                            timeout: Annotated[int, Option("--timeout", "-t", help="Timeout for waiting the DNS resolver reply (seconds).")] = 1,
-                            threads: Annotated[int, Option("--threads", "-T", help="Max. ammount of concurrent threads for the scanner process.")] = 80):
-    """Discover subdomains by recursive brute forcing (A, CNAME and NS records by default)."""
-    sd_enum.subdomainEnumeration(target, wordlist, timeout, ipv6, output, http_status, threads)
-
-
-# @app.command("arpspoofer")
-# def app_arp_spoofer(target: Annotated[str, Argument(help="Target IP.")] = "",
-#                 host: Annotated[str, Argument(help="Target host.")] = "",
-#                 timing: Annotated[int, Option("--timing", "-t", help="Timing between sending packets.")] = 2,
-#                 verbose: Annotated[bool, Option("--verbose", "-v", help="Verbose flag.")] = 'False'):
-#     """Not working (yet)."""
-#     # arp_spoofer.ScapyArpSpoofer(target, host, timing, verbose)
+    args = parser.parse_args()
+    if hasattr(args, "func"):
+        args.func(args)
+    else:
+        parser.print_help()
 
 
 
 if __name__ == "__main__":
-    app()
+    main()
