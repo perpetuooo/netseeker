@@ -1,13 +1,11 @@
-import argparse
-
 from modules import port_scanner
 from modules import network_scanner
 from modules import traceroute
 from modules import sd_enum
 # from modules import arp_spoofer
 
+from resources import NetSeekerArgumentParser
 
-# def app_info(args):
 
 # def app_ping(args):
 
@@ -49,23 +47,20 @@ def app_subdomain_enum(args):
         wordlist_path=args.wordlist,
         timeout=args.timeout,
         ipv6=args.ipv6,
-        output=args.output,
-        http_status=args.status,
-        threads=args.threads,
         mx=args.mx,
+        output=args.output,
+        http_status=args.http_probe,
+        threads=args.threads,
     )
 
 def main():
-    parser = argparse.ArgumentParser(description="NetSeeker", prog="netseeker")
+    parser = NetSeekerArgumentParser(description="NetSeeker", prog="netseeker")
     subparsers = parser.add_subparsers(title="Commands", dest="command")
 
-    # Info.
-    # subparsers.add_parser("info", help="Info about the project").set_defaults(func=app_info)
-
-    # Ping.
+    # Ping
     # subparsers.add_parser("ping", help="A simple redesign of ICMP ping").set_defaults(func=app_ping)
 
-    # Port Scanner.
+    # Port Scanner
     pscan = subparsers.add_parser("portscan", help="Scans target for open TCP/UDP ports.")
     pscan.add_argument("target", nargs='?', help="Target IP/domain.", default="127.0.0.1")
     pscan.add_argument("--ports", "-p", help="Ports to scan (e.g., '20', '1-1024', '22,80,443', 'all').", default="1-1024")
@@ -76,7 +71,7 @@ def main():
     pscan.add_argument("--threads", "-T", type=int, help="Max. ammount of threads for the scanner process.", default=80)
     pscan.set_defaults(func=app_port_scanner)
 
-    # Network Scanner.
+    # Network Scanner
     nscan = subparsers.add_parser("netscan", help="Discover hosts on a network.")
     nscan.add_argument("target", nargs='?', help="Target IP range.", default="Connected Network")
     nscan.add_argument("--retries", "-r", type=int, help="Max. retries per host.", default=0)
@@ -90,21 +85,21 @@ def main():
     nscan.add_argument("--threads", "-T", type=int, help="Max. ammount of threads for the scanner process.", default=80)
     nscan.set_defaults(func=app_network_scanner)
 
-    # Traceroute.
-    trace = subparsers.add_parser("traceroute", help="Trace network path to a target.")
+    # Traceroute
+    trace = subparsers.add_parser("traceroute", help="Trace the network path to a target.")
     trace.add_argument("target", help="Target IP/domain.")
     trace.add_argument("--timeout", "-t", type=int, help="Timeout per hop (seconds).", default=3)
     trace.add_argument("--max-hops", "-m", type=int, help="Max. number of hops.", default=30)
-    trace.add_argument("--generate-map", "-g", action="store_true", help="Generate interactive map.")
+    trace.add_argument("--generate-map", "-g", action="store_true", help="Generate a interactive map.")
     trace.add_argument("--save-file", "-s", action="store_true", help="Save map to HTML.")
     trace.set_defaults(func=app_traceroute)
 
-    # Subdomain Enumeration.
+    # Subdomain Enumeration
     sdenum = subparsers.add_parser("sdenum", help="Subdomain enumeration with recursive brute force.")
     sdenum.add_argument("target", help="Target domain")
     sdenum.add_argument("--wordlist", "-w", help="Path to a new wordlist file.")
     sdenum.add_argument("--output", "-o", action="store_true", help="Save results in a text file.")
-    sdenum.add_argument("--status", "-s", action="store_true", help="Check domain for a HTTP/HTTPS status response.")
+    sdenum.add_argument("--http-probe", "-hp", action="store_true", help="Check subdomains for a HTTP/HTTPS status response.")
     sdenum.add_argument("--ipv6", "-6", action="store_true", help="Scan for IPv6 records (AAAA).")
     sdenum.add_argument("--mx", "-m", action="store_true", help="Scan for mail exchange records (MX).")
     sdenum.add_argument("--timeout", "-t", type=int, help="Timeout for the DNS resolver (seconds).", default=1)
@@ -113,6 +108,7 @@ def main():
 
 
     args = parser.parse_args()
+
     if hasattr(args, "func"):
         args.func(args)
     else:
