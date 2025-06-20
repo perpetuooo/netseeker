@@ -55,7 +55,7 @@ def app_subdomain_enum(args):
 
 def main():
     parser = NetSeekerArgumentParser(description="NetSeeker", prog="netseeker")
-    subparsers = parser.add_subparsers(title="Commands", dest="command")
+    subparsers = parser.add_subparsers(dest="command")
 
     # Ping
     # subparsers.add_parser("ping", help="A simple redesign of ICMP ping").set_defaults(func=app_ping)

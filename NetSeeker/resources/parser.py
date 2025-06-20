@@ -1,17 +1,53 @@
 import re
 import sys
-from argparse import ArgumentParser
+import argparse
 from resources import console
 
-class NetSeekerArgumentParser(ArgumentParser):
-    def get_command(self):
-        if len(sys.argv) > 1:
-            potential_command = sys.argv[1]
+class NetSeekerArgumentParser(argparse.ArgumentParser):
+    @property
+    def _commands(self):
+        # Cache commands to avoid re-parsing.
+        if not hasattr(self, '_cached_commands_dict'):
+            self._cached_commands_dict = {}
 
-            if potential_command in ['portscan', 'netscan', 'traceroute', 'sdenum']:
-                return potential_command
+            for action in self._actions:
+                if isinstance(action, argparse._SubParsersAction):
+                    self._cached_commands_dict = dict(action.choices)
+                    break
+
+        return self._cached_commands_dict
+
+
+    def get_current_command(self):
+        commands = set(self._commands.keys())
         
+        for arg in sys.argv[1:]:
+            if arg in commands:
+                return arg
+
         return None
+
+
+    def get_command_options(self, command):
+        options = []
+
+        if command not in self._commands:
+            return options
+        
+        # Cache options to avoid re-parsing
+        if not hasattr(self, '_cached_command_options'):
+            self._cached_command_options = {}
+        
+        if command not in self._cached_command_options:
+            subparser = self._commands[command]
+            
+            for action in subparser._actions:
+                if action.option_strings:
+                    options.extend(action.option_strings)   # Interleaving: [0] = '-h' / [1] = '--help' / [2] = '--ports' / [3] = '-p'...
+            
+            self._cached_command_options[command] = options
+        
+        return self._cached_command_options[command]
 
 
     def print_help(self, file = None):
@@ -37,7 +73,7 @@ class NetSeekerArgumentParser(ArgumentParser):
             case _:
                 console.print(f"Usage: netseeker COMMAND [ARGS] [OPTIONS]")
 
-        console.print(f"\nTry 'netseeker --help/-h' for more information about the commands.")
+        console.print(f"Try 'netseeker --help' for more information.")
 
     
     def error(self, message):
