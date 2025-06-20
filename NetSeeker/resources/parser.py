@@ -2,6 +2,7 @@ import re
 import sys
 import argparse
 from resources import console
+from rapidfuzz import process, fuzz
 
 class NetSeekerArgumentParser(argparse.ArgumentParser):
     @property
@@ -19,7 +20,7 @@ class NetSeekerArgumentParser(argparse.ArgumentParser):
 
 
     def get_current_command(self):
-        commands = set(self._commands.keys())
+        commands = self._commands.keys()
         
         for arg in sys.argv[1:]:
             if arg in commands:
@@ -58,27 +59,20 @@ class NetSeekerArgumentParser(argparse.ArgumentParser):
 
     
     def print_usage(self, command = None, file = None):
+        console.print(command)
         if file is None:
             file = sys.stdout
 
-        match command:
-            case ('portscan'):  
-                console.print(f"Usage: netseeker portscan [TARGET] [OPTIONS]\nExample: netseeker portscan 192.168.1.1 --ports 21,53,587")
-            case ('netscan'):
-                console.print(f"Usage: netseeker netscan [TARGET] [OPTIONS]\nExample: netseeker netscan 192.168.1.0/24 --retries 3 --verbose")
-            case ('traceroute'):
-                console.print(f"Usage: netseeker traceroute [TARGET] [OPTIONS]\nExample: netseeker traceroute google.com --generate-map")
-            case ('sdenum'):
-                console.print(f"Usage: netseeker sdenum [TARGET] [OPTIONS]\nExample: netseeker sdenum example.com --output --wordlist /path/to/wordlist.txt")
-            case _:
-                console.print(f"Usage: netseeker COMMAND [ARGS] [OPTIONS]")
-
-        console.print(f"Try 'netseeker --help' for more information.")
+        commands = self._commands.keys()
+            
+        if command in commands:
+            console.print(f"Try 'netseeker {command} --help' for more information.")
+        else:
+            console.print(f"Try 'netseeker --help' for more information.")
 
     
     def error(self, message):
         # return super().error(message)
-        command = self.get_command()
 
         # Invalid command.
         if match := re.search(r"argument command: invalid choice: '([^']+)'", message):
@@ -88,21 +82,27 @@ class NetSeekerArgumentParser(argparse.ArgumentParser):
         
         # Invalid choice (https://docs.python.org/3/library/argparse.html#choices).
         elif match := re.search(r"argument move: invalid choice: '([^']+)'", message):
-            console.print(f"[bold red]ERROR: [/bold red] ")
-            self.print_usage(command)
+            console.print(f"[bold red]ERROR:[/bold red] ")     # no use for now.
+            self.print_usage(self.get_current_command())
         
         # Invalid arguments.
         elif match := re.search(r"unrecognized arguments: (.+)", message):
             invalid_item = match.group(1).strip()
             console.print(f"[bold red]ERROR:[/bold red] Invalid option: '{invalid_item}'")
-            self.suggest_options(invalid_item)
+            self.suggest_options(self.get_current_command(), invalid_item)
         
         # Missing required arguments.
         elif match := re.search(r"the following arguments are required: (.+)", message):
             missing_args = match.group(1).strip()
             console.print(f"[bold red]ERROR:[/bold red] Missing argument: '{missing_args}'")
-            self.print_usage(command)
+            self.print_usage(self.get_current_command())
 
+        # Expected one or more arguments.
+        elif match := re.search(r"argument (.+): expected one argument", message):
+            missing_arg_info = match.group(1).strip()
+            console.print(f"[bold red]ERROR:[/bold red] Expected an argument for '{missing_arg_info}'.")
+            self.print_usage(self.get_current_command())
+        
         else:
             return super().error(message)
 
@@ -110,8 +110,20 @@ class NetSeekerArgumentParser(argparse.ArgumentParser):
 
 
     def suggest_commands(self, invalid_command):
-        pass
+        commands = list(self._commands.keys())
+        match = process.extractOne(invalid_command, commands, scorer=fuzz.ratio)
+
+        if match and match[1] >= 80:    # 80 as default threshold.
+            console.print(f"Did you mean [yellow]'{match[0]}'[/yellow]?")
+        else:
+            self.print_usage()
 
 
-    def suggest_options(self, invalid_option):
-        pass
+    def suggest_options(self, command, invalid_option):
+        options = self.get_command_options(command)
+        match = process.extractOne(invalid_option, options, scorer=fuzz.ratio)
+
+        if match and match[1] >= 80:    # 80 as default threshold.
+            console.print(f"Did you mean [yellow]'{match[0]}'[/yellow]?")
+        else:
+            self.print_usage(command)
