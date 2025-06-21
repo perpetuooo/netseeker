@@ -1,7 +1,6 @@
 import os
-import re
+import sys
 import time
-import typer
 import socket
 import folium
 import tempfile
@@ -208,7 +207,7 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
     # If it is an IP, verify if its a valid public address.
     elif not info.check_ip(target) or not ip_address(target).is_global:
         console.print(f"[bold red][!] ERROR:[/bold red] Invalid target specified: {target}")
-        raise typer.Exit(code=1)
+        sys.exit(1)
 
     process_time = time.perf_counter()
 

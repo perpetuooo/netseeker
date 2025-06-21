@@ -1,5 +1,5 @@
 import time
-import typer
+import sys
 import random
 import logging
 
@@ -187,7 +187,7 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
         network = IPv4Network(target)
     except ValueError:
         console.print(f"[bold red][!] ERROR:[/bold red] Invalid target specified: {target}")
-        typer.exit(code=1)
+        sys.exit(1)
     
     # Create a list of all hosts in the network.
     hosts = [str(ip) for ip in network.hosts()]

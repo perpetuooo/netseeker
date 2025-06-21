@@ -1,7 +1,6 @@
 import re
 import time
-import typer
-import socket
+import sys
 import requests
 import random
 import string
@@ -35,7 +34,7 @@ def subdomainEnumeration(target, wordlist_path, timeout, ipv6, mx, output, http_
 
         except Exception:
             progress.console.print(f"[bold red][!] ERROR:[/bold red] Invalid file path for wordlist: {filepath}") 
-            raise typer.Exit(code=1)
+            sys.exit(1)
 
 
     # Detect wildcard addresses to ignore any resolutions on the scanner function.
@@ -178,7 +177,7 @@ def subdomainEnumeration(target, wordlist_path, timeout, ipv6, mx, output, http_
 
     if not info.check_domain(target):   
         console.print(f"[bold red][!] ERROR:[/bold red] Invalid domain: {target}")
-        raise typer.Exit(code=1)
+        sys.exit(1)
 
     record_types = ["A", "CNAME", "TXT", "NS"]  
     if ipv6: record_types.append("AAAA")

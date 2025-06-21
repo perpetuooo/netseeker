@@ -1,5 +1,5 @@
+import sys
 import time
-import typer
 import socket
 from threading import Event, Lock
 from rich.table import Table
@@ -136,8 +136,8 @@ def portScanner(target, ports, timeout, udp, threads, bg, verbose):
                     parsed_ports.add(int(part))
 
             except ValueError:
-                    console.print(f"[bold red][!] ERROR:[/bold red] Invalid port range specified: {part}")
-                    raise typer.Exit(code=1)
+                console.print(f"[bold red][!] ERROR:[/bold red] Invalid port range specified: {part}")
+                sys.exit(1)
 
         return sorted(parsed_ports)
 
@@ -164,7 +164,7 @@ def portScanner(target, ports, timeout, udp, threads, bg, verbose):
 
     else:
         console.print(f"[bold red][!][/bold red] Host [yellow]{target}[/yellow] is down, exiting...")
-        typer.Exit(1)
+        sys.exit(1)
 
     process_time = time.perf_counter()
     parsed_ports = parse_ports(ports)
