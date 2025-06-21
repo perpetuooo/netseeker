@@ -14,7 +14,7 @@ from resources import services
 from resources import console
 
 
-def subdomainEnumeration(target, wordlist_path, timeout, ipv6, output, http_status, threads):
+def subdomainEnumeration(target, wordlist_path, timeout, ipv6, mx, output, http_status, threads):
 
     # Load wordlists for the bruteforce function.
     def load_wordlist(filepath, wordlist):
@@ -84,21 +84,56 @@ def subdomainEnumeration(target, wordlist_path, timeout, ipv6, output, http_stat
 
 
     #
-    def scanner(subdomain):
+    def scanner(subdomain, record_types):
 
-        #
-        def check_http():
-          pass
+        # Check HTTP/HTTPS status for a domain
+        def check_http(domain):
+            if stop.is_set(): return
 
+            results = []
+
+            for scheme in ['https', 'http']:
+                try:
+                    url = f"{scheme}://{domain}"
+                    response = requests.get(url, timeout=3, allow_redirects=True, headers={'User-Agent': 'JeffBezos/1.0'})
+                    
+                    # Color code based on status
+                    if 200 <= response.status_code < 300:
+                        color = "bold green"
+                    elif 300 <= response.status_code < 400:
+                        color = "bold yellow" 
+                    elif 400 <= response.status_code < 500:
+                        color = "bold red"
+                    else:
+                        color = "bold magenta"
+
+                    server = response.headers.get('Server', 'Unknown')
+                    final_url = response.url if response.url != url else ""
+                    redirect_info = f" → {final_url}" if final_url and final_url != url else ""   # In case of redirects.
+
+                    results.append(f"\t[{color}]└─[/] {scheme.upper()}: {response.status_code} - [bold]{server}[/bold]{redirect_info}")
+
+                except requests.exceptions.Timeout:
+                    results.append(f"\t[bold red]└─[/] {scheme.upper()}: Timeout")
+                except requests.exceptions.ConnectionError:
+                    results.append(f"\t[bold red]└─[/] {scheme.upper()}: Connection refused")
+                except requests.exceptions.RequestException as e:
+                    results.append(f"\t[bold red]└─[/] {scheme.upper()}: Error ({type(e).__name__})")
+                except KeyboardInterrupt:
+                    stop.set()
+                    return
+
+            return results
+
+
+        if stop.is_set(): return
 
         with progress_lock:
-            progress.update(task_id, description=f"Scanning [yellow]{target}[/yellow] for subdomains - {subdomain}")
-
-        record_types = ["A", "CNAME", "TXT", "NS"]
-        if ipv6: record_types.append("AAAA")
+            progress.update(task_id, description=f"Scanning [yellow]{target}[/yellow] for subdomains: {subdomain}", advance=1)
 
         full_domain = f"{subdomain}.{target}"
         found = False
+        output = []
 
         # Searching subdomains by bruteforce.
         for rtype in record_types:
@@ -106,27 +141,33 @@ def subdomainEnumeration(target, wordlist_path, timeout, ipv6, output, http_stat
                 result = resolver.resolve(full_domain, rtype)
                 ips = [ip.to_text() for ip in result]
 
-                # Wildcard filtering for A/AAAA.
+                # Wildcard filtering for A/AAAA records.
                 if rtype in ("A", "AAAA") and any(ip in wildcard_ips for ip in ips):
-                    return
+                    break
 
                 if not found:
-                    progress.console.print(f"[bold green][+][/bold green] Found subdomain: [green]{full_domain}[/green]")
-
-                    if http_status: check_http()
-
                     with progress_lock:
+                        output.append(f"[bold green][+][/bold green] Found subdomain: [green]{full_domain}[/green]")
                         found_subdomains.append(full_domain)
+
+                    if http_status: 
+                        output.extend(check_http(full_domain))
 
                     found = True
                     break
 
             # Domain name not found or time expired.
             except (resolver.NXDOMAIN, resolver.Timeout, resolver.NoAnswer):
-                pass
+                continue
 
-            finally:
-                progress.update(task_id, advance=1)
+            except KeyboardInterrupt:
+                stop.set()
+                return
+        
+        # Print output.
+        with progress_lock:
+            for line in output:
+                progress.console.print(line)
 
 
     info = services.DevicesInfo()
@@ -135,9 +176,13 @@ def subdomainEnumeration(target, wordlist_path, timeout, ipv6, output, http_stat
     subdomains = []
     found_subdomains = []
 
-    if not info.check_domain(target):
+    if not info.check_domain(target):   
         console.print(f"[bold red][!] ERROR:[/bold red] Invalid domain: {target}")
         raise typer.Exit(code=1)
+
+    record_types = ["A", "CNAME", "TXT", "NS"]  
+    if ipv6: record_types.append("AAAA")
+    if mx: record_types.append("MX")
     
     process_time = time.perf_counter()
 
@@ -161,7 +206,7 @@ def subdomainEnumeration(target, wordlist_path, timeout, ipv6, output, http_stat
             wildcard_ips = detect_wildcard(target)
 
             with ThreadPoolExecutor(max_workers=threads) as executor:    # Using ThreadPoolExecutor to improve performance.
-                futures = {executor.submit(scanner, subdomain): subdomain for subdomain in subdomains}
+                futures = {executor.submit(scanner, subdomain, record_types): subdomain for subdomain in subdomains}
                 
                 try:
                     for future in as_completed(futures):
@@ -190,7 +235,7 @@ def subdomainEnumeration(target, wordlist_path, timeout, ipv6, output, http_stat
     if not found_subdomains:
         console.print("[bold red][!][/bold red] No subdomain was found.")
     else:
-        console.print(f"[bold green][!][/bold green] Found {len(found_subdomains)} subdomains.")
+        console.print(f"[bold green][+][/bold green] Found {len(found_subdomains)} subdomains.")
 
 
 if __name__ == '__main__':
