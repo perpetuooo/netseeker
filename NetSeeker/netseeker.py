@@ -27,7 +27,7 @@ def app_network_scanner(args):
         timeout=args.timeout,
         threads=args.threads,
         stealth=args.stealth,
-        local_tcp_syn=args.local_tcp_syn,
+        local_tcp_syn=args.tcp_syn,
         force_scan=args.force,
         verbose=args.verbose,
     )
@@ -63,7 +63,7 @@ def main():
     # Port Scanner
     pscan = subparsers.add_parser("portscan", help="Scans target for open TCP/UDP ports.", add_help=False)
     pscan.add_argument("target", nargs='?', help="Target IP/domain.", default="127.0.0.1")
-    pscan.add_argument("--ports", "-p", help="Ports to scan (e.g., '20', '1-1024', '22,80,443', 'all').", default="1-1024")
+    pscan.add_argument("--ports", "-p", help="Ports to scan (e.g.: '20', '1-1024', '22,80,443', 'all').", default="1-1024")
     pscan.add_argument("--timeout", "-t", type=int, help="Timeout for waiting a reply (seconds).", default=1)
     pscan.add_argument("--udp", "-sU", action="store_true", help="Enable UDP scan.")
     pscan.add_argument("--banner", "-b", action="store_true", help="Enable banner grabbing.")
@@ -79,7 +79,7 @@ def main():
     nscan.add_argument("--timeout", "-t", type=int, help="Timeout for waiting a reply (seconds).", default=1)
     nscan.add_argument("--udp", "-sU", action="store_true", help="Enable UDP scan.")
     nscan.add_argument("--tcp-ack", "-sTA", action="store_true", help="Enable TCP ACK scan.")
-    nscan.add_argument("--local-tcp-syn", "-sTS", action="store_true", help="Enable TCP SYN scan for local networks.")
+    nscan.add_argument("--tcp-syn", "-sTS", action="store_true", help="Enable TCP SYN scan for local networks.")
     nscan.add_argument("--force", "-f", action="store_true", help="Force all scans even if host was already found.")
     nscan.add_argument("--stealth", "-sS", action="store_true", help="Stealth scan mode.")
     nscan.add_argument("--verbose", "-v", action="store_true", help="Verbose output.")
@@ -99,8 +99,8 @@ def main():
 
     # Subdomain Enumeration
     sdenum = subparsers.add_parser("sdenum", help="Subdomain enumeration with recursive brute force.", add_help=False)
-    sdenum.add_argument("target", help="Target domain")
-    sdenum.add_argument("--wordlist", "-w", help="Path to a new wordlist file.")
+    sdenum.add_argument("domain", help="Target domain")
+    sdenum.add_argument("--wordlist", "-w", help="Path to another wordlist.txt to implement more keywords on the bruteforce.")
     sdenum.add_argument("--output", "-o", action="store_true", help="Save results in a text file.")
     sdenum.add_argument("--http-probe", "-hp", action="store_true", help="Check subdomains for a HTTP/HTTPS status response.")
     sdenum.add_argument("--ipv6", "-6", action="store_true", help="Scan for IPv6 records (AAAA).")

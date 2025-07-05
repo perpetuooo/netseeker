@@ -1,8 +1,13 @@
 import re
 import sys
 import argparse
-from resources import console
+from rich.table import Table
+from rich.panel import Panel
+from rich.padding import Padding
 from rapidfuzz import process, fuzz
+
+from resources import console
+
 
 class NetSeekerArgumentParser(argparse.ArgumentParser):
     @property
@@ -26,23 +31,32 @@ class NetSeekerArgumentParser(argparse.ArgumentParser):
                         continue
 
                     dest = action.dest
-                    if dest == argparse.SUPPRESS:
-                        continue
                     
+                    if dest == argparse.SUPPRESS:
+                        continue    
+                    
+                    # Determine argument type
+                    if action.type:
+                        arg_type = action.type.__name__.upper()
+                    elif action.nargs is not None:
+                        
+                        if isinstance(action, argparse._StoreTrueAction) or isinstance(action, argparse._StoreFalseAction): # Boolean values.
+                            arg_type = " "
+                        elif action.option_strings: # Optional argument, probably a boolean also.
+                             arg_type = " " 
+                        else: # Positional argument.
+                            arg_type = cmd.upper()
+
+                    # Default
+                    else:
+                        arg_type = "TEXT"
+
                     self._cached_commands_dict[cmd][dest] = {
                         "options": action.option_strings,
                         "default": action.default,
-                        "help": action.help or ""
+                        "help": action.help or "",
+                        "type": arg_type,
                     }
-
-
-        # for cmd, args in parser._cached_commands_dict.items():
-        #     print(f"Command: {cmd}")
-        #     for argname, meta in args.items():
-        #         print(f"  Arg: {argname}")
-        #         print(f"    Options: {meta['options']}")
-        #         print(f"    Default: {meta['default']}")
-        #         print(f"    Help:    {meta['help']}")
 
         return self._cached_commands_dict
 
@@ -60,8 +74,79 @@ class NetSeekerArgumentParser(argparse.ArgumentParser):
     def print_help(self, command=None, file=None):
         if file is None:
             file = sys.stdout
+        # return super().print_help(file)
 
-        return super().print_help(file)
+        # As much as I want to make the help message system fully dynamic, I cant think of a way to make it work while being flexible.
+        match command:
+            case "portscan":
+                console.print("""
+                Usage: netseeker portscan [TARGET] [OPTIONS]
+                Scans a target IP address or domain for open TCP and/or UDP ports.
+                Example: netseeker portscan 192.168.1.100 --ports 25,53,8080 --timeout 3""")
+            case "netscan":
+                console.print("""
+                Usage: netseeker netscan [TARGET] [OPTIONS]
+                Discover hosts on a network (ARP + ICMP for local networks and ICMP + TCP SYN for remote).
+                Example: netseeker netscan 192.168.1.0/24 --tcp-syn --verbose""")
+            case "traceroute":
+                console.print("""
+                Usage: netseeker traceroute [TARGET] [OPTIONS]
+                Traces the network path that IP packets take to reach a target host.
+                Example: netseeker traceroute google.com --max-hops 50 --generate-map""")
+            case "sdenum":
+                console.print("""
+                Usage: netseeker sdenum [DOMAIN] [OPTIONS]
+                Discover subdomains by recursive brute forcing (A, CNAME and NS records by default).
+                Example: netseeker sdenum test.com --wordilist path/to/your/wordlist.txt --output""")
+            case _:   # General help message.     
+                console.print(f"""
+                Usage: netseeker COMMAND [ARGS] [OPTIONS]
+                Options:
+                --help\t-h\t\t\tShow this help message and exit.
+
+                Commands:
+                [bold]portscan[/bold]\t\t\tScans target for open TCP/UDP ports.
+                [bold]netscan[/bold]\t\t\t\tDiscover hosts on a network.
+                [bold]traceroute[/bold]\t\t\tTrace the network path to a target.
+                [bold]sdenum[/bold]\t\t\t\tSubdomain enumeration with recursive brute force.""")
+                raise SystemExit
+        
+        # Create and configure tables.
+        arguments_table = Table(box=None, show_header=False, show_lines=False, padding=(0,1))
+        options_table = Table(box=None, show_header=False, show_lines=False, padding=(0,1))
+        options_table.add_column(style="bold blue")  # Options.
+        options_table.add_column(style="bold yellow")  # Type.
+        options_table.add_column()  # Help & Default Value.
+        # Create and configure panels.
+        arguments_panel = Panel(
+            Padding(arguments_table, (0, 1)),
+            title="Arguments",
+            border_style="dim",
+            title_align="left",
+            expand=True
+        )
+        options_panel = Panel(
+            Padding(options_table, (0, 1)),
+            title="Options",
+            border_style="dim",
+            title_align="left",
+            expand=True
+        )
+
+        for arg, meta in self._cached_commands_dict[command].items():
+            # Positional args.
+            if not meta['options']:
+                arguments_table.add_row(f"{arg}   [{arg.upper()}]   {meta['help']} (Default: {meta['default']})")
+                continue
+            
+            # Other options.
+            options_table.add_row(f"{" / ".join(meta['options'])}    ", meta['type'], f"    {meta['help']} (Default: {meta['default']})")
+
+        console.print(arguments_panel)
+        console.print()
+        console.print(options_panel)
+
+        raise SystemExit
 
     
     def print_usage(self, command=None, file=None):

@@ -78,7 +78,7 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
 
             # Printing results.
             if hop_info['ip'] is None:
-                progress.console.print(f"[bold yellow]\\[i] HOP {ttl}[/bold yellow] - Request timed out.\n")
+                progress.console.print(f"[bold yellow][~] HOP {ttl}[/bold yellow]\n- Request timed out.\n")
                 continue
 
             location = hop_info.get("location") or {}
