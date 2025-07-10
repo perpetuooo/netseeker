@@ -43,7 +43,7 @@ def app_traceroute(args):
 
 def app_subdomain_enum(args):
     sd_enum.subdomainEnumeration(
-        target=args.target,
+        target=args.domain,
         wordlist_path=args.wordlist,
         timeout=args.timeout,
         ipv6=args.ipv6,
@@ -99,7 +99,7 @@ def main():
 
     # Subdomain Enumeration
     sdenum = subparsers.add_parser("sdenum", help="Subdomain enumeration with recursive brute force.", add_help=False)
-    sdenum.add_argument("domain", help="Target domain")
+    sdenum.add_argument("domain", help="Target domain.")
     sdenum.add_argument("--wordlist", "-w", help="Path to another wordlist.txt to implement more keywords on the bruteforce.")
     sdenum.add_argument("--output", "-o", action="store_true", help="Save results in a text file.")
     sdenum.add_argument("--http-probe", "-hp", action="store_true", help="Check subdomains for a HTTP/HTTPS status response.")
@@ -109,7 +109,6 @@ def main():
     sdenum.add_argument("--threads", "-T", type=int, help="Max. ammount of threads for the scanner process.", default=80)
     sdenum.add_argument("--help", "-h", action="store_true", help="Show this help message and exit.")
     sdenum.set_defaults(func=app_subdomain_enum)
-
 
     parser.get_current_command()
     args = parser.parse_args()

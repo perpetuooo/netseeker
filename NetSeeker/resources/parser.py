@@ -11,10 +11,16 @@ from resources import console
 
 
 class NetSeekerArgumentParser(argparse.ArgumentParser):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._current_command = None
+        _ = self._commands  # Force commands initialization.
+
+
     @property
     def _commands(self):
         # Cache commands to avoid re-parsing.
-        if not hasattr(self, '_cached_commands_dict'):
+        if not hasattr(self, '_cached_commands_dict') or not self._cached_commands_dict:
             self._cached_commands_dict = {}
 
             # Parse through all subparsers.
@@ -32,23 +38,22 @@ class NetSeekerArgumentParser(argparse.ArgumentParser):
                         continue
 
                     dest = action.dest
-                    
-                    if dest == argparse.SUPPRESS:
-                        continue    
-                    
-                    # Determine argument type
+                    if dest == argparse.SUPPRESS:   # Bad stuff.
+                        continue
+
+                    # Determine argument type.
                     if action.type:
                         arg_type = action.type.__name__.upper()
                     elif action.nargs is not None:
                         
                         if isinstance(action, argparse._StoreTrueAction) or isinstance(action, argparse._StoreFalseAction): # Boolean values.
                             arg_type = " "
-                        elif action.option_strings: # Optional argument, probably a boolean also.
+                        elif action.option_strings: # Boolean values too?
                              arg_type = " " 
                         else: # Positional argument.
                             arg_type = cmd.upper()
 
-                    # Default
+                    # Default.
                     else:
                         arg_type = "TEXT"
 
@@ -63,14 +68,20 @@ class NetSeekerArgumentParser(argparse.ArgumentParser):
 
 
     def get_current_command(self):
-        if not hasattr(self, '_current_command'):
-            self._current_command = None
-
+        # Avoid reparsing.
+        if self._current_command is not None:
+            return self._current_command
+        
+        self._current_command = None
         commands = self._commands.keys()
         
         for arg in sys.argv[1:]:
             if arg in commands:
                 self._current_command = arg
+                break
+        
+        return self._current_command
+
 
     def print_help(self, command=None, file=None):
         if file is None:
@@ -87,7 +98,6 @@ class NetSeekerArgumentParser(argparse.ArgumentParser):
         arguments_panel = Panel(
             Padding(arguments_table, (0, 1)),
             title="Arguments",
-            # border_style="dim",
             title_align="left",
             expand=True,
             box=box.SQUARE,
@@ -95,7 +105,6 @@ class NetSeekerArgumentParser(argparse.ArgumentParser):
         options_panel = Panel(
             Padding(options_table, (0, 1)),
             title="Options",
-            # border_style="dim",
             title_align="left",
             expand=True,
             box=box.SQUARE,
@@ -138,37 +147,36 @@ class NetSeekerArgumentParser(argparse.ArgumentParser):
         
         console.print()
 
-        for arg, meta in self._cached_commands_dict[command].items():
-            # Positional args.
-            if not meta['options']:
-                arguments_table.add_row(f"{arg}   [{arg.upper()}]   {meta['help']} Default: {meta['default']}")
-                continue
-            
-            # Other options.
-            options_table.add_row(f"{" / ".join(meta['options'])}    ", meta['type'], f"    {meta['help']} Default: {meta['default']}")
+        if command in self._commands:
+            for arg, meta in self._commands[command].items():
+                # Positional args.
+                if not meta['options']:
+                    arguments_table.add_row(f"{arg}   [{arg.upper()}]   {meta['help']} Default: {meta['default']}")
+                    continue
+                
+                # Other options.
+                options_table.add_row(f"{" / ".join(meta['options'])}    ", meta['type'], f"    {meta['help']} Default: {meta['default']}")
 
-        console.print(arguments_panel)
-        console.print()
-        console.print(options_panel)
+            console.print(arguments_panel)
+            console.print()
+            console.print(options_panel)
 
         raise SystemExit
 
-    
+
     def print_usage(self, command=None, file=None):
         if file is None:
             file = sys.stdout
 
-        commands = self._commands.keys()
-            
-        if command in commands:
+        if command in self._commands.keys():
             console.print(f"Try [yellow]'netseeker {command} --help'[/yellow] for more information.")
         else:
             console.print(f"Try [yellow]'netseeker --help'[/yellow] for more information.")
 
-    
-    def error(self, message):
-        # return super().error(message)
 
+    def error(self, message):
+        current_command = self.get_current_command() or sys.argv[1] if len(sys.argv) > 1 else None
+        
         # Invalid command.
         if match := re.search(r"argument command: invalid choice: '([^']+)'", message):
             invalid_item = match.group(1)
@@ -177,26 +185,32 @@ class NetSeekerArgumentParser(argparse.ArgumentParser):
         
         # Invalid choice (https://docs.python.org/3/library/argparse.html#choices).
         elif match := re.search(r"argument move: invalid choice: '([^']+)'", message):
-            console.print(f"[bold red]ERROR:[/bold red] ")     # no use for now.
-            self.print_usage(self._current_command)
+            console.print(f"[bold red]ERROR:[/bold red] Invalid choice: [bold]'{match.group(1)}'[/bold]")
+            self.print_usage(current_command)
         
         # Invalid arguments.
         elif match := re.search(r"unrecognized arguments: (.+)", message):
             invalid_item = match.group(1).strip()
             console.print(f"[bold red]ERROR:[/bold red] Invalid option: [bold]'{invalid_item}'[/bold]")
-            self.suggest_options(self._current_command, invalid_item)
+            self.suggest_options(current_command, invalid_item)
         
         # Missing required arguments.
         elif match := re.search(r"the following arguments are required: (.+)", message):
             missing_args = match.group(1).strip()
             console.print(f"[bold red]ERROR:[/bold red] Missing argument: [bold]'{missing_args}'[/bold]")
-            self.print_usage(self.get_current_command())
-
+            self.print_usage(current_command)
+        
         # Expected one or more arguments.
         elif match := re.search(r"argument (.+): expected one argument", message):
             missing_arg_info = match.group(1).strip()
             console.print(f"[bold red]ERROR:[/bold red] Expected an argument for [bold]'{missing_arg_info}'[/bold].")
-            self.print_usage(self.get_current_command())
+            self.print_usage(current_command)
+
+        # Invalid argument value.
+        # netseeker portscan: error: argument --timeout/-t: invalid int value: 'o'
+
+        # Ambiguous option.
+        # netseeker netscan: error: ambiguous option: -s could match -sU, -sTA, -sTS, -sS
         
         else:
             return super().error(message)
@@ -215,11 +229,18 @@ class NetSeekerArgumentParser(argparse.ArgumentParser):
 
 
     def suggest_options(self, command, invalid_option):
-        for _, meta in self._cached_commands_dict[command].items():
-            match = process.extractOne(invalid_option, meta['options'], scorer=fuzz.ratio)
+        if not command or command not in self._commands.keys():
+            self.print_usage(command)
+            return
+            
+        all_options = []
 
-            if match and match[1] >= 80:    # 80 as default threshold.
-                console.print(f"Did you mean [yellow]{match[0]}[/yellow]?")
-                return
+        for _, meta in self._commands[command].items():
+            all_options.extend(meta['options'])
+            
+        match = process.extractOne(invalid_option, all_options, scorer=fuzz.ratio)
 
-        self.print_usage(command)
+        if match and match[1] >= 80:    # 80 as default threshold.
+            console.print(f"Did you mean [yellow]{match[0]}[/yellow]?")
+        else:
+            self.print_usage(command)
