@@ -231,7 +231,7 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
                 progress.update(task_id, description="Stopping traceroute...")
 
     if stop.is_set():
-        console.print(f"[bold red][!][/bold red] Traceroute interrupted! Time elapsed: {int(time.perf_counter() - process_time)}s")
+        console.print(f"[bold yellow][~][/bold yellow] Traceroute interrupted! Time elapsed: {int(time.perf_counter() - process_time)}s")
     else:
         console.print(f"[bold green][+][/bold green] Traceroute completed! Time elapsed: {int(time.perf_counter() - process_time)}s")
 

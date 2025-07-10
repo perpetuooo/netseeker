@@ -224,7 +224,7 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
         stop.set()
         
     if stop.is_set():
-        console.print(f"[bold red][!][/bold red] Scan interrupted! Time elapsed: {int(time.perf_counter() - process_time)}s")
+        console.print(f"[bold yellow][~][/bold yellow] Scan interrupted! Time elapsed: {int(time.perf_counter() - process_time)}s")
     
     else:
         console.print(f"[bold green][+][/bold green] Scan completed! Time elapsed: {int(time.perf_counter() - process_time)}s")

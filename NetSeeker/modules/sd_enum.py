@@ -1,9 +1,9 @@
 import re
 import time
 import sys
-import requests
 import random
 import string
+import requests
 from dns import resolver
 from threading import Event, Lock
 from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
@@ -82,7 +82,7 @@ def subdomainEnumeration(target, wordlist_path, timeout, ipv6, mx, output, http_
         return wildcard_ips
 
 
-    #
+    # Search subdomains by bruteforce.
     def scanner(subdomain, record_types):
 
         # Check HTTP/HTTPS status for a domain
@@ -128,13 +128,12 @@ def subdomainEnumeration(target, wordlist_path, timeout, ipv6, mx, output, http_
         if stop.is_set(): return
 
         with progress_lock:
-            progress.update(task_id, description=f"Scanning [yellow]{target}[/yellow] for subdomains: {subdomain}", advance=1)
+            progress.update(task_id, description=f"Scanning [yellow]{target}[/yellow] for subdomains: {subdomain}")
 
         full_domain = f"{subdomain}.{target}"
         found = False
         output = []
 
-        # Searching subdomains by bruteforce.
         for rtype in record_types:
             try:
                 result = resolver.resolve(full_domain, rtype)
@@ -225,9 +224,11 @@ def subdomainEnumeration(target, wordlist_path, timeout, ipv6, mx, output, http_
 
     except KeyboardInterrupt:
         stop.set()
-    
+
+    console.print() # New line.
+
     if stop.is_set():
-        console.print(f"[bold red][!][/bold red] Enumeration interrupted! Time elapsed: {int(time.perf_counter() - process_time)}s")
+        console.print(f"[bold yellow][~][/bold yellow] Enumeration interrupted! Time elapsed: {int(time.perf_counter() - process_time)}s")
     else:
         console.print(f"[bold green][+][/bold green] Enumeration completed! Time elapsed: {int(time.perf_counter() - process_time)}s")
     
