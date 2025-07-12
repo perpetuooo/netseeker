@@ -168,7 +168,7 @@ class NetSeekerArgumentParser(argparse.ArgumentParser):
         if file is None:
             file = sys.stdout
 
-        if command in self._commands.keys():
+        if command:
             console.print(f"Try [yellow]'netseeker {command} --help'[/yellow] for more information.")
         else:
             console.print(f"Try [yellow]'netseeker --help'[/yellow] for more information.")
@@ -207,10 +207,19 @@ class NetSeekerArgumentParser(argparse.ArgumentParser):
             self.print_usage(current_command)
 
         # Invalid argument value.
-        # netseeker portscan: error: argument --timeout/-t: invalid int value: 'o'
+        elif match := re.search(r"argument (.+): invalid (.+) value: '([^']+)'", message):
+            arg_name = match.group(1).strip()
+            expected_type = match.group(2).strip()
+            invalid_value = match.group(3).strip()
+            console.print(f"[bold red]ERROR:[/bold red] Invalid value for argument [bold]'{arg_name}'[/bold] (Expected [bold green]{expected_type}[/bold green] but got [bold red]'{invalid_value}'[/bold red]).")
+            self.print_usage(current_command)
 
         # Ambiguous option.
-        # netseeker netscan: error: ambiguous option: -s could match -sU, -sTA, -sTS, -sS
+        elif match := re.search(r"ambiguous option: (.+) could match (.+)", message):
+            ambiguous_option = match.group(1).strip()
+            possible_matches = match.group(2).strip()
+            console.print(f"[bold red]ERROR:[/bold red] Ambiguous option: [bold]'{ambiguous_option}'[/bold] could match multiple options ([bold]{possible_matches}[/bold]).")
+            self.print_usage(current_command)
         
         else:
             return super().error(message)
