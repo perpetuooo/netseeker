@@ -46,8 +46,7 @@ def app_subdomain_enum(args):
         target=args.domain,
         wordlist_path=args.wordlist,
         timeout=args.timeout,
-        ipv6=args.ipv6,
-        mx=args.mx,
+        rtypes=args.record_types,
         output=args.output,
         http_status=args.http_probe,
         threads=args.threads,
@@ -101,10 +100,9 @@ def main():
     sdenum = subparsers.add_parser("sdenum", help="Subdomain enumeration with recursive brute force.", add_help=False)
     sdenum.add_argument("domain", help="Target domain.")
     sdenum.add_argument("--wordlist", "-w", help="Path to another wordlist.txt to implement more keywords on the bruteforce.")
-    sdenum.add_argument("--output", "-o", action="store_true", help="Save results in a text file.")
+    sdenum.add_argument("--record-types", "-rt", help="", default="A,AAAA,CNAME")
     sdenum.add_argument("--http-probe", "-hp", action="store_true", help="Check subdomains for a HTTP/HTTPS status response.")
-    sdenum.add_argument("--ipv6", "-6", action="store_true", help="Scan for IPv6 records (AAAA).")
-    sdenum.add_argument("--mx", "-m", action="store_true", help="Scan for mail exchange records (MX).")
+    sdenum.add_argument("--output", "-o", action="store_true", help="Save results in a text file.")
     sdenum.add_argument("--timeout", "-t", type=int, help="Timeout for the DNS resolver (seconds).", default=1)
     sdenum.add_argument("--threads", "-T", type=int, help="Max. ammount of threads for the scanner process.", default=80)
     sdenum.add_argument("--help", "-h", action="store_true", help="Show this help message and exit.")

@@ -5,7 +5,6 @@ from threading import Event, Lock
 from rich.table import Table
 from rich.panel import Panel
 from rich import box
-from typing import List, Set
 from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -115,9 +114,9 @@ def portScanner(target, ports, timeout, udp, threads, bg, verbose):
                 sock.close()
                 progress.update(task_id, advance=1)
         
-
-    def parse_ports(ports: str) -> List[int]:
-        parsed_ports: Set[int] = set()  # Using set to dismiss duplicate ports.
+    # Parse ports for the scanner process.
+    def parse_ports(ports):
+        parsed_ports = set()  # Using set to dismiss duplicate ports.
 
         if ports == 'all': ports = '1-65535'
 
@@ -166,8 +165,8 @@ def portScanner(target, ports, timeout, udp, threads, bg, verbose):
         console.print(f"[bold red][!][/bold red] Host [yellow]{target}[/yellow] is down, exiting...")
         sys.exit(1)
 
-    process_time = time.perf_counter()
     parsed_ports = parse_ports(ports)
+    process_time = time.perf_counter()
 
     try:
         with Progress(
