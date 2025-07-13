@@ -1,6 +1,7 @@
 import os
 import re
 import socket
+import logging
 import pathlib
 import requests
 import platform
@@ -130,6 +131,9 @@ class DevicesInfo:
         # macOS or other.
         else:
             return os.path.join(Path.home(), "Desktop")
+
+
+    logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 
 
 
