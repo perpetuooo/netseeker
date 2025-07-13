@@ -1,3 +1,5 @@
+
+import sys
 from modules import port_scanner
 from modules import network_scanner
 from modules import traceroute
@@ -109,11 +111,14 @@ def main():
     sdenum.set_defaults(func=app_subdomain_enum)
 
     parser.get_current_command()
-    args = parser.parse_args()
 
-    if args.help:
+    # Check for help before parsing args.
+    if any(flag in sys.argv for flag in {"--help", "-h"}):
         parser.print_help(parser._current_command)
-    elif hasattr(args, "func"):
+
+    args = parser.parse_args()
+    
+    if hasattr(args, "func"):
         args.func(args)
     else:
         parser.print_help()
