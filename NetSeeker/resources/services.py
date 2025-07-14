@@ -95,42 +95,54 @@ class DevicesInfo:
 
 
     # Gets user desktop path.
-    def get_desktop_path(self):
+    def get_path(self, location, subfolder = None):
+        location = location.lower()
         system = platform.system()
+        base_path = None
+
+        if location not in ["desktop", "documents"]:
+            raise ValueError(f"[bold red]ERROR:[/bold red] Invalid location to get path.")
 
         if system == "Windows":
-            # Use Windows API to get the real Desktop path.
-            from ctypes import wintypes, windll, create_unicode_buffer
-
-            CSIDL_DESKTOP = 0  # Desktop
-            SHGFP_TYPE_CURRENT = 0
-
-            buf = create_unicode_buffer(wintypes.MAX_PATH)
-
-            if windll.shell32.SHGetFolderPathW(None, CSIDL_DESKTOP, None, SHGFP_TYPE_CURRENT, buf) == 0:
-                return buf.value
-            else:
-                return os.path.join(Path.home(), "Desktop")
-
-        elif system == "Linux":
             try:
-                # Try using xdg-user-dir (works if available).
-                desktop = subprocess.check_output(["xdg-user-dir", "DESKTOP"]).decode().strip()
+                from ctypes import windll, wintypes, create_unicode_buffer
 
-                if os.path.isdir(desktop):
-                    return desktop
+                CSIDL_MAP = {
+                    "desktop": 0,
+                    "documents": 5
+                }
+
+                csidl = CSIDL_MAP[location]
+                SHGFP_TYPE_CURRENT = 0
+                buf = create_unicode_buffer(wintypes.MAX_PATH)
+
+                if windll.shell32.SHGetFolderPathW(None, csidl, None, SHGFP_TYPE_CURRENT, buf) == 0:
+                    base_path = buf.value
+
             except Exception:
                 pass
-            
-            desktop = os.path.join(pathlib.Path.home(), "Desktop")
+        elif system == "Linux":
+            try:
+                xdg_location = "DESKTOP" if location == "desktop" else "DOCUMENTS"
+                base_path = subprocess.check_output(["xdg-user-dir", xdg_location]).decode().strip()
+                if not os.path.isdir(base_path):
+                    base_path = None
 
-            if os.path.isdir(desktop):
-                return desktop
-            return str(Path.home())  # Fallback: ~/home
-        
-        # macOS or other.
-        else:
-            return os.path.join(Path.home(), "Desktop")
+            except Exception:
+                pass
+        elif system == "Darwin":  # macOS
+            base_path = os.path.join(Path.home(), "Desktop" if location == "desktop" else "Documents")
+
+        # Fallback.
+        if not base_path or not os.path.isdir(base_path):
+            base_path = os.path.join(Path.home(), "Desktop" if location == "desktop" else "Documents")
+
+        if subfolder:
+            full_path = os.path.join(base_path, subfolder)
+            os.makedirs(full_path, exist_ok=True)
+            return full_path
+
+        return base_path
 
 
     logging.getLogger("scapy.runtime").setLevel(logging.ERROR)

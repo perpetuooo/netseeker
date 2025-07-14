@@ -178,20 +178,24 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
         if locations:
             m.fit_bounds([locations[0], locations[-1]])
 
-        if save_file:
-            with progress_lock:
-                progress.update(task_id, description="Saving file...")
+        try:
+            if save_file:
+                with progress_lock:
+                    progress.update(task_id, description="Saving file...")
 
-            filepath = os.path.join(info.get_desktop_path(), f"traceroute-{target}_{time.strftime('%d-%m-%Y_%H-%M-%S',time.localtime())}.html")
-            m.save(filepath)
-            webbrowser.open(f"file://{filepath}")
-        else:
-            with progress_lock:
-                progress.update(task_id, description="Opening file...")
+                filepath = os.path.join(info.get_path("Documents", "NetSeeker"), f"tracert-{target}-{time.strftime('%d%m%Y%H%M%S',time.localtime())}.html")
+                m.save(filepath)
+                webbrowser.open(f"file://{filepath}")
+            else:
+                with progress_lock:
+                    progress.update(task_id, description="Opening file...")
 
-            with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
-                m.save(f.name)
-                webbrowser.open(f"file://{f.name}")
+                with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+                    m.save(f.name)
+                    webbrowser.open(f"file://{f.name}")
+        
+        except Exception:
+            progress.console.print("[bold red]ERROR:[/bold red] Couldn't open/save generated file.")
 
 
     target_name = target
