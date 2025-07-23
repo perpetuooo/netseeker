@@ -249,14 +249,48 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
 
     except KeyboardInterrupt:
         stop.set()
+            
+    # Save results in a .txt file
+    if output and found_subdomains:
+        try:
+            filepath = os.path.join(info.get_path("Documents", "NetSeeker"), f"sdenum-{target}-{time.strftime('%d%m%Y%H%M%S', time.localtime())}.txt")
 
-    console.print() # New line.
+            with open(filepath, 'w', encoding='utf-8') as f:
+                current_subdomain = None
+
+                for line in found_subdomains:
+                    # Remove Rich tags and ANSI codes
+                    cleaned = re.sub(r'\[/?(?:bold|green|yellow|red|magenta|/?)\]', '', line)
+                    cleaned = re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', cleaned)
+
+                    # Match cleaned subdomain line
+                    match = re.search(r'Found subdomain:\s*(.+)', cleaned)
+                    if match:
+                        current_subdomain = match.group(1).strip()
+                        f.write(f"{current_subdomain}\n")
+                    elif current_subdomain:
+                        # Clean HTTP/HTTPS result line
+                        cleaned_line = re.sub(r'\s*└─\s*', '', cleaned).strip()
+                        if cleaned_line:
+                            f.write(f"   - {cleaned_line}\n")
+
+                output_success = True
+        except Exception as e:
+            output_success = False
+            console.print(f"[bold red][!] ERROR:[/bold red] Failed to write file: {e}")
+
+    console.print()
 
     if stop.is_set():
         console.print(f"[bold yellow][~][/bold yellow] Enumeration interrupted! Time elapsed: {int(time.perf_counter() - process_time)}s")
     else:
         console.print(f"[bold green][+][/bold green] Enumeration completed! Time elapsed: {int(time.perf_counter() - process_time)}s")
     
+    if output and output_success:
+        console.print(f"[bold green][+][/bold green] Results saved to: {filepath}")
+    elif output and not output_success:
+        console.print(f"[bold red][!][/bold red] Could not write to file {filepath}")
+
     if not found_subdomains:
         console.print("[bold red][!][/bold red] No subdomain was found.")
     else:
