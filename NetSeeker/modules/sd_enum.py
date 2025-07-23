@@ -1,3 +1,4 @@
+import os
 import re
 import time
 import sys
@@ -104,49 +105,49 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
         return wildcard_ips
 
 
+    # Check HTTP/HTTPS status for a domain.
+    def http_probe(domain):
+        if stop.is_set(): return []
+
+        results = []
+
+        for scheme in ['https', 'http']:
+            if stop.is_set():
+                break
+
+            try:
+                url = f"{scheme}://{domain}"
+                response = requests.get(url, timeout=3, allow_redirects=True, headers={'User-Agent': 'JeffBezos/1.0'})
+
+                # Color code based on status.
+                if 200 <= response.status_code < 300:
+                    color = "bold green"
+                elif 300 <= response.status_code < 400:
+                    color = "bold yellow"
+                elif 400 <= response.status_code < 500:
+                    color = "bold red"
+                else:
+                    color = "bold magenta"
+
+                server = response.headers.get('Server', 'Unknown')
+                final_url = response.url if response.url != url else ""
+                redirect_info = f" → {final_url}" if final_url and final_url != url else ""
+
+                results.append(f"\t[{color}]└─[/] {scheme.upper()}: {response.status_code} - [bold]{server}[/bold]{redirect_info}")
+            except requests.exceptions.Timeout:
+                results.append(f"\t[bold red]└─[/] {scheme.upper()}: Timeout")
+            except requests.exceptions.ConnectionError:
+                results.append(f"\t[bold red]└─[/] {scheme.upper()}: Connection refused")
+            except requests.exceptions.RequestException as e:
+                results.append(f"\t[bold red]└─[/] {scheme.upper()}: Error ({type(e).__name__})")
+            except KeyboardInterrupt:
+                stop.set()
+                break
+
+        return results
+
     # Search subdomains by bruteforce.
     def enumerator(subdomain, record_types):
-
-        # Check HTTP/HTTPS status for a domain
-        def check_http(domain):
-            if stop.is_set(): return
-
-            results = []
-
-            for scheme in ['https', 'http']:
-                try:
-                    url = f"{scheme}://{domain}"
-                    response = requests.get(url, timeout=3, allow_redirects=True, headers={'User-Agent': 'JeffBezos/1.0'})
-                    
-                    # Color code based on status
-                    if 200 <= response.status_code < 300:
-                        color = "bold green"
-                    elif 300 <= response.status_code < 400:
-                        color = "bold yellow" 
-                    elif 400 <= response.status_code < 500:
-                        color = "bold red"
-                    else:
-                        color = "bold magenta"
-
-                    server = response.headers.get('Server', 'Unknown')
-                    final_url = response.url if response.url != url else ""
-                    redirect_info = f" → {final_url}" if final_url and final_url != url else ""   # In case of redirects.
-
-                    results.append(f"\t[{color}]└─[/] {scheme.upper()}: {response.status_code} - [bold]{server}[/bold]{redirect_info}")
-
-                except requests.exceptions.Timeout:
-                    results.append(f"\t[bold red]└─[/] {scheme.upper()}: Timeout")
-                except requests.exceptions.ConnectionError:
-                    results.append(f"\t[bold red]└─[/] {scheme.upper()}: Connection refused")
-                except requests.exceptions.RequestException as e:
-                    results.append(f"\t[bold red]└─[/] {scheme.upper()}: Error ({type(e).__name__})")
-                except KeyboardInterrupt:
-                    stop.set()
-                    return
-
-            return results
-
-
         if stop.is_set(): return
 
         with progress_lock:
@@ -154,11 +155,11 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
 
         full_domain = f"{subdomain}.{target}"
         found = False
-        output = []
+        output_text = []
 
         for rtype in record_types:
             try:
-                result = resolver.resolve(full_domain, rtype)
+                result = resolver.resolve(full_domain, rtype, lifetime=timeout)
                 ips = [ip.to_text() for ip in result]
 
                 # Wildcard filtering for A/AAAA records.
@@ -167,27 +168,27 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
 
                 if not found:
                     with progress_lock:
-                        output.append(f"[bold green][+][/bold green] Found subdomain: [green]{full_domain}[/green]")
-                        found_subdomains.append(full_domain)
+                        output_text.append(f"[bold green][+][/bold green] Found subdomain: [green]{full_domain}[/green]")
 
-                    if http_status: 
-                        output.extend(check_http(full_domain))
+                    # Submit HTTP probe to separate thread pool.
+                    if http_status:
+                        http_result = http_probe(full_domain)
+                        output_text.extend(http_result)
 
                     found = True
                     break
-
-            # Domain name not found or time expired.
             except (resolver.NXDOMAIN, resolver.Timeout, resolver.NoAnswer):
                 continue
-
             except KeyboardInterrupt:
                 stop.set()
                 return
-        
+
         # Print output.
         with progress_lock:
-            for line in output:
+            for line in output_text:
                 progress.console.print(line)
+
+        return output_text
 
 
     info = services.DevicesInfo()
@@ -222,19 +223,24 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
             progress.update(task_id, description=f"Detecting wildcard addresses...")
             wildcard_ips = detect_wildcard(target)
 
-            with ThreadPoolExecutor(max_workers=threads) as executor:    # Using ThreadPoolExecutor to improve performance.
+            with ThreadPoolExecutor(max_workers=threads) as executor, ThreadPoolExecutor(max_workers=threads) as http_executor:  # Using ThreadPoolExecutor to improve performance.
                 futures = {executor.submit(enumerator, subdomain, record_types): subdomain for subdomain in subdomains}
-                
                 try:
                     for future in as_completed(futures):
-                        if stop.is_set():  
-                            # Cancel all pending futures.
+                        # Cancel all pending futures.
+                        if stop.is_set():
                             for f in futures:
                                 if not f.done():
                                     f.cancel()
-                            
+
                             break
-                
+
+                        # Get the output lines.
+                        result_lines = future.result()
+
+                        if result_lines:
+                            found_subdomains.extend(result_lines)
+
                 except KeyboardInterrupt:
                     stop.set()
 
