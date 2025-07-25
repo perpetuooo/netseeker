@@ -1,4 +1,3 @@
-
 import sys
 from modules import port_scanner
 from modules import network_scanner

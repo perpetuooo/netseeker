@@ -9,11 +9,12 @@ from dns import resolver
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
 from threading import Event, Lock
-from typing import Set
 
 from resources import services
 from resources import console
 
+#TODO:
+# - Implement the search engine crawler.
 
 def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_status, threads):
 
@@ -35,7 +36,7 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
                         wordlist.append(subdomain)
 
         except Exception:
-            progress.console.print(f"[bold red][!] ERROR:[/bold red] Invalid file path for wordlist: {filepath}") 
+            progress.console.print(f"[bold red][!] ERROR:[/bold red] Invalid path for wordlist or invalid file: {filepath}") 
             sys.exit(1)
 
     # Parse DNS record types for the enumeration process.
@@ -146,12 +147,27 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
 
         return results
 
-    # Search subdomains by bruteforce.
+
+    # Search subdomains on search engines.
+    def se_crawler(subdomain, engine, page):
+        if stop.is_set(): return
+
+        output_text = []
+
+        # Print output.
+        with progress_lock:
+            for line in output_text:
+                progress.console.print(line)
+
+        return output_text
+
+
+    # Search subdomains by DNS bruteforce.
     def enumerator(subdomain, record_types):
         if stop.is_set(): return
 
         with progress_lock:
-            progress.update(task_id, description=f"Scanning [yellow]{target}[/yellow] for subdomains: {subdomain}")
+            progress.update(task_id, description=f"Performing DNS bruteforce on [yellow]{target}[/yellow] for subdomains: {subdomain}")
 
         full_domain = f"{subdomain}.{target}"
         found = False
@@ -170,7 +186,7 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
                     with progress_lock:
                         output_text.append(f"[bold green][+][/bold green] Found subdomain: [green]{full_domain}[/green]")
 
-                    # Submit HTTP probe to separate thread pool.
+                    # Verify HTTP status response.
                     if http_status:
                         http_result = http_probe(full_domain)
                         output_text.extend(http_result)
@@ -195,7 +211,8 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
     stop = Event()
     progress_lock = Lock()
     subdomains = []
-    found_subdomains = []
+    found_sd = []
+    sd_count = 0
 
     if not info.check_domain(target):   
         console.print(f"[bold red][!] ERROR:[/bold red] Invalid domain: {target}")
@@ -223,23 +240,24 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
             progress.update(task_id, description=f"Detecting wildcard addresses...")
             wildcard_ips = detect_wildcard(target)
 
-            with ThreadPoolExecutor(max_workers=threads) as executor, ThreadPoolExecutor(max_workers=threads) as http_executor:  # Using ThreadPoolExecutor to improve performance.
-                futures = {executor.submit(enumerator, subdomain, record_types): subdomain for subdomain in subdomains}
+            with ThreadPoolExecutor(max_workers=threads) as executor:  # Using ThreadPoolExecutor to improve performance.
                 try:
+                    progress.update(task_id, description=f"Starting DNS enumeration")
+                    futures = {executor.submit(enumerator, subdomain, record_types): subdomain for subdomain in subdomains}
                     for future in as_completed(futures):
                         # Cancel all pending futures.
                         if stop.is_set():
                             for f in futures:
                                 if not f.done():
                                     f.cancel()
-
                             break
 
                         # Get the output lines.
                         result_lines = future.result()
 
                         if result_lines:
-                            found_subdomains.extend(result_lines)
+                            found_sd.extend(result_lines)
+                            sd_count += 1
 
                 except KeyboardInterrupt:
                     stop.set()
@@ -251,14 +269,14 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
         stop.set()
             
     # Save results in a .txt file
-    if output and found_subdomains:
+    if output and found_sd:
         try:
             filepath = os.path.join(info.get_path("Documents", "NetSeeker"), f"sdenum-{target}-{time.strftime('%d%m%Y%H%M%S', time.localtime())}.txt")
 
             with open(filepath, 'w', encoding='utf-8') as f:
                 current_subdomain = None
 
-                for line in found_subdomains:
+                for line in found_sd:
                     # Remove Rich tags and ANSI codes
                     cleaned = re.sub(r'\[/?(?:bold|green|yellow|red|magenta|/?)\]', '', line)
                     cleaned = re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', cleaned)
@@ -291,10 +309,12 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
     elif output and not output_success:
         console.print(f"[bold red][!][/bold red] Could not write to file {filepath}")
 
-    if not found_subdomains:
+    if not found_sd:
         console.print("[bold red][!][/bold red] No subdomain was found.")
     else:
-        console.print(f"[bold green][+][/bold green] Found {len(found_subdomains)} subdomains.")
+        console.print(f"[bold green][+][/bold green] Found {sd_count} subdomains.")
+        for domain in found_sd:
+            console.print(domain)
 
 
 if __name__ == '__main__':
