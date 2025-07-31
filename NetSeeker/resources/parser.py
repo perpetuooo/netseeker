@@ -112,6 +112,10 @@ class NetSeekerArgumentParser(argparse.ArgumentParser):
 
         # As much as I want to make the help message system fully dynamic, I cant think of a way to make it work while being flexible.
         match command:
+            case "ping":
+                console.print("Usage: netseeker ping [TARGET] [OPTIONS]")
+                console.print("")
+                console.print("")
             case "portscan":
                 console.print("Usage: netseeker portscan [TARGET] [OPTIONS]")
                 console.print("Scans a target IP address or domain for open TCP and/or UDP ports.")
@@ -132,6 +136,7 @@ class NetSeekerArgumentParser(argparse.ArgumentParser):
                 arguments_panel.title = "Commands"
                 arguments_table.add_column()
                 options_table.add_row(f"--help / -h    ", "", "    Show this help message and exit.")
+                arguments_table.add_row("ping            ", "Checks target availability with ICMP packets.")
                 arguments_table.add_row("portscan            ", "Scans target for open TCP/UDP ports.")
                 arguments_table.add_row("netscan            ", "Discover hosts on a network.")
                 arguments_table.add_row("traceroute            ", "Trace the network path to a target.")

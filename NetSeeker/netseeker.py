@@ -1,4 +1,5 @@
 import sys
+from modules import ping
 from modules import port_scanner
 from modules import network_scanner
 from modules import traceroute
@@ -8,7 +9,13 @@ from modules import sd_enum
 from resources import NetSeekerArgumentParser
 
 
-# def app_ping(args):
+def app_ping(args):
+    ping.packetInternetGrouper(
+        target=args.target,
+        timeout=args.timeout,
+        count=args.count,
+        ttl=args.time_to_live,
+    )
 
 def app_port_scanner(args):
     port_scanner.portScanner(
@@ -58,11 +65,17 @@ def main():
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # Ping
-    # subparsers.add_parser("ping", help="A simple redesign of ICMP ping").set_defaults(func=app_ping)
+    png = subparsers.add_parser("ping", help="A simple redesign of a ICMP ping.", add_help=False)
+    png.add_argument("target", nargs='?', help="Target address.")
+    png.add_argument("--timeout", "-t", type=int, help="Timeout for waiting a reply (seconds).", default=1)
+    png.add_argument("--count", "-c", type=int, help="Timeout for waiting a reply (seconds).", default=5)
+    png.add_argument("--time-to-live", "-ttl", type=int, help="Timeout for waiting a reply (seconds).", default=64)
+    png.add_argument("--help", "-h", action="store_true", help="Show this help message and exit.")
+    png.set_defaults(func=app_ping)
 
     # Port Scanner
     pscan = subparsers.add_parser("portscan", help="Scans target for open TCP/UDP ports.", add_help=False)
-    pscan.add_argument("target", nargs='?', help="Target IP/domain.", default="127.0.0.1")
+    pscan.add_argument("target", nargs='?', help="Target address.", default="127.0.0.1")
     pscan.add_argument("--ports", "-p", help="Ports to scan (e.g.: '20', '1-1024', '22,80,443', 'all').", default="1-1024")
     pscan.add_argument("--timeout", "-t", type=int, help="Timeout for waiting a reply (seconds).", default=1)
     pscan.add_argument("--udp", "-sU", action="store_true", help="Enable UDP scan.")
@@ -89,7 +102,7 @@ def main():
 
     # Traceroute
     tracert = subparsers.add_parser("traceroute", help="Trace the network path to a target.", add_help=False)
-    tracert.add_argument("target", help="Target IP/domain.")
+    tracert.add_argument("target", help="Target address.")
     tracert.add_argument("--timeout", "-t", type=int, help="Timeout per hop (seconds).", default=3)
     tracert.add_argument("--max-hops", "-m", type=int, help="Max. number of hops.", default=30)
     tracert.add_argument("--generate-map", "-g", action="store_true", help="Generate a interactive map.")

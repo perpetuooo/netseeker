@@ -2,7 +2,6 @@ import os
 import re
 import socket
 import logging
-import pathlib
 import requests
 import platform
 import ipaddress
