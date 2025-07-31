@@ -89,13 +89,26 @@ def packetInternetGrouper(target, timeout, count, ttl):
                 console.print(f"[bold green][+][/bold green] Ping! - {duration:.2f}ms")
                 received += 1
         except socket.timeout:
-            console.print("[bold red][+][/bold red] Request timed out.")        
+            console.print("[bold yellow][~][/bold yellow] Request timed out.")        
             miss += 1
 
     sock.close()
 
-    console.print(f"\nReceived: {received}")
-    console.print(f"Missed: {miss}")
+    # Longest, shortest and average response time.
+    avg = 0; rmin = float("inf"); rmax = float("-inf")
+    for x in responses:
+        avg += x
+        if x < rmin: rmin = x
+        if x > rmax: rmax = x
+    
+    if received:
+        avg = avg / received
+        
+        console.print(f"\nReceived: {received}")
+        console.print(f"Missed: {miss}")
+        console.print(f"\nAverage: {avg:.2f}ms - Min: {rmin:.2f}ms - Max: {rmax:.2f}ms")
+    else:
+        console.print(f"[bold red][!][/bold red] No replies received.")
 
 
 
