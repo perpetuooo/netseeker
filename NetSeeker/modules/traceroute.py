@@ -195,7 +195,7 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
                     webbrowser.open(f"file://{f.name}")
         
         except Exception:
-            progress.console.print("[bold red]ERROR:[/bold red] Couldn't open/save generated file.")
+            progress.console.print("[bold red][!][/bold red] Couldn't open/save generated file.")
 
 
     target_name = target
@@ -210,7 +210,7 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
 
     # If it is an IP, verify if its a valid public address.
     elif not info.check_ip(target) or not ip_address(target).is_global:
-        console.print(f"[bold red][!] ERROR:[/bold red] Invalid target specified: {target}")
+        console.print(f"[bold red][!][/bold red] Invalid target specified: {target}")
         sys.exit(1)
 
     process_time = time.perf_counter()

@@ -68,7 +68,7 @@ def portScanner(target, ports, timeout, udp, threads, bg, verbose):
                     if "port/proto not found" in str(e):  # Service name not found.
                         pass
                     else:
-                        progress.console.print(f"[bold red][!] UDP SCAN ERROR:[/bold red] {str(e)}")
+                        progress.console.print(f"[bold red][!][/bold red] UDP SCAN ERROR: {str(e)}")
                         sock.close()
                         return None
             
@@ -101,7 +101,7 @@ def portScanner(target, ports, timeout, udp, threads, bg, verbose):
                     pass
 
                 else:
-                    progress.console.print(f"[bold red][!] TCP SCAN ERROR:[/bold red] {str(e)}")
+                    progress.console.print(f"[bold red][!][/bold red] TCP SCAN ERROR: {str(e)}")
                     sock.close()
                     return None
             
@@ -135,7 +135,7 @@ def portScanner(target, ports, timeout, udp, threads, bg, verbose):
                     parsed_ports.add(int(part))
 
             except ValueError:
-                console.print(f"[bold red][!] ERROR:[/bold red] Invalid port range specified: {part}")
+                console.print(f"[bold red][!][/bold red] Invalid port range specified: {part}")
                 sys.exit(1)
 
         return sorted(parsed_ports)

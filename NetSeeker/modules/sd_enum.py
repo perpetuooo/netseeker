@@ -36,7 +36,7 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
                         wordlist.append(subdomain)
 
         except Exception:
-            progress.console.print(f"[bold red][!] ERROR:[/bold red] Invalid path for wordlist or invalid file: {filepath}") 
+            progress.console.print(f"[bold red][!][/bold red] Invalid path for wordlist or invalid file: {filepath}") 
             sys.exit(1)
 
     # Parse DNS record types for the enumeration process.
@@ -53,7 +53,7 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
                 else:
                     raise Exception
             except (ValueError, Exception):
-                console.print(f"[bold red][!] ERROR:[/bold red] Invalid record type specified: '{part}'")
+                console.print(f"[bold red][!][/bold red] Invalid record type specified: '{part}'")
                 console.print(f"Available DNS record types: {", ".join(available_records)}")
                 sys.exit(1)
 
@@ -215,7 +215,7 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
     sd_count = 0
 
     if not info.check_domain(target):   
-        console.print(f"[bold red][!] ERROR:[/bold red] Invalid domain: {target}")
+        console.print(f"[bold red][!][/bold red] Invalid domain: {target}")
         sys.exit(1)
 
     record_types = parse_rtypes(rtypes)
@@ -295,7 +295,7 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
                 output_success = True
         except Exception as e:
             output_success = False
-            console.print(f"[bold red][!] ERROR:[/bold red] Failed to write file: {e}")
+            console.print(f"[bold red][!][/bold red] Failed to write file: {e}")
 
     console.print()
 
