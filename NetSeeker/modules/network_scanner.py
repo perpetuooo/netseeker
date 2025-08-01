@@ -198,6 +198,7 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
             SpinnerColumn(spinner_name="line", style="white"),
             TextColumn("[progress.description]{task.description}"),
             transient=True,
+            console=console
         ) as progress:
             task_id:TaskID = progress.add_task("Initializing scan...", total=len(hosts))
 

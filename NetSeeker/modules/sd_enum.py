@@ -226,6 +226,7 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
             SpinnerColumn(spinner_name="line", style="white"),
             TextColumn("[progress.description]{task.description}"),
             transient=True,
+            console=console
         ) as progress:
             task_id:TaskID = progress.add_task("Starting enumeration...")
             

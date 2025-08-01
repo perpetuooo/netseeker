@@ -213,6 +213,7 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
         SpinnerColumn(spinner_name="line", style="white"),
         TextColumn("[progress.description]{task.description}"),
         transient=True,
+        console=console
     ) as progress:
         task_id:TaskID = progress.add_task(f"Starting traceroute...", total=max_hops)
 
