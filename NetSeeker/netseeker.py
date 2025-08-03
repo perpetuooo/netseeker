@@ -12,6 +12,7 @@ from resources import NetSeekerArgumentParser
 def app_ping(args):
     ping.packetInternetGrouper(
         target=args.target,
+        ipv6=args.ipv6,
         timeout=args.timeout,
         count=args.count,
         ttl=args.time_to_live,
@@ -67,8 +68,9 @@ def main():
     # Ping
     png = subparsers.add_parser("ping", help="A simple redesign of a ICMP ping.", add_help=False)
     png.add_argument("target", nargs='?', help="Target address.")
+    png.add_argument("--ipv6", "-6", action="store_true", help="IPv6 ping.")
     png.add_argument("--timeout", "-t", type=int, help="Timeout for waiting a reply (seconds).", default=1)
-    png.add_argument("--count", "-c", type=int, help="Timeout for waiting a reply (seconds).", default=5)
+    png.add_argument("--count", "-c", type=int, help="Ammount of packages to send.", default=5)
     png.add_argument("--time-to-live", "-ttl", type=int, help="Timeout for waiting a reply (seconds).", default=64)
     png.add_argument("--help", "-h", action="store_true", help="Show this help message and exit.")
     png.set_defaults(func=app_ping)
@@ -94,7 +96,7 @@ def main():
     nscan.add_argument("--tcp-ack", "-sTA", action="store_true", help="Enable TCP ACK scan.")
     nscan.add_argument("--tcp-syn", "-sTS", action="store_true", help="Enable TCP SYN scan for local networks.")
     nscan.add_argument("--force", "-f", action="store_true", help="Force all scans even if host was already found.")
-    nscan.add_argument("--stealth", "-sS", action="store_true", help="Stealth scan mode.")
+    nscan.add_argument("--stealth", "-sS", action="store_true", help="Stealth scan (TCP SYN, random MAC, random timings, reduced ports. Overrides other scan types).")
     nscan.add_argument("--verbose", "-v", action="store_true", help="Verbose output.")
     nscan.add_argument("--threads", "-T", type=int, help="Max. ammount of threads for the scanner process.", default=80)
     nscan.add_argument("--help", "-h", action="store_true", help="Show this help message and exit.")

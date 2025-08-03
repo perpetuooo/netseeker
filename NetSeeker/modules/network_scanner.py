@@ -33,10 +33,8 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
             nonlocal host_responded
             
             try:
-                arp_pkt = Ether(dst="ff:ff:ff:ff:ff:ff", src=(RandMAC() if stealth else None))/ARP(pdst=str(host))
+                arp_pkt = Ether(dst="ff:ff:ff:ff:ff:ff", src=RandMAC())/ARP(pdst=str(host))
                 response = None
-
-                if stealth: time.sleep(random.uniform(0.1, 0.5))
 
                 if retries == 0:
                     response = srp(arp_pkt, timeout=timeout, verbose=0)[0]
@@ -76,6 +74,7 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
                         if response: break
 
                 if response and response.haslayer(ICMP) and response[ICMP].type == 0:   # Echo reply.
+                    host_data['hostname'] = info.get_hostname(host)
                     host_data['scans'].append("ICMP")
                     host_responded = True
             
@@ -90,6 +89,8 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
             nonlocal host_responded
 
             try:
+                if stealth: time.sleep(random.uniform(0.1, 0.5))
+
                 open_ports = []
                 for port in [80, 443, 22]:
                     if stop.is_set(): return
@@ -113,9 +114,12 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
                         
                         elif response[TCP].flags & 0x04: # RST (host alive).
                             host_responded = True
+
+                    if stealth: break   # Try only on port 80.
                 
                 if open_ports:
-                    host_data['scans'].append(f"TCP({','.join(open_ports)})")
+                    if not stealth and host_data['hostname'] == "NOT FOUND": host_data['hostname'] = info.get_hostname(host)
+                    host_data['scans'].append(f"TCP-SYN({','.join(open_ports)})")
                 
             except KeyboardInterrupt:
                 stop.set()
@@ -140,15 +144,15 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
             }
 
             # ARP for local networks.
-            if local_network:
+            if not stealth and local_network:
                 arp_scan()
             
-            # ICMP for local/remote networks if stealth scan is disabled (only if the host was not found or force_scan is enabled).
+            # ICMP for local/remote networks if stealth scan is disabled.
             if not stealth and (not host_responded or force_scan):
                 icmp_scan()
 
-            # TCP SYN scan for remote networks or local networks if local_tcp_syn is enabled (only if the host was not found or force_scan is enabled).
-            if (not local_network) or (local_network and local_tcp_syn and (not host_responded or force_scan)):
+            # TCP SYN scan for stealth mode, remote networks or local networks if local_tcp_syn is enabled.
+            if (stealth or not local_network or (local_network and local_tcp_syn)) and (not host_responded or force_scan):
                 tcp_syn_scan()
 
             # Append results.
