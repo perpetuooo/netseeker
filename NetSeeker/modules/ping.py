@@ -7,7 +7,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
 
 from resources import console
 
-def packetInternetGrouper(target, timeout, count, ttl):
+def packetInternetGrouper(target, ipv6, timeout, count, ttl):
     # Sets the socket TTL based on the users plataform.
     def set_ttl(sock, ttl):
         success = False
@@ -86,10 +86,10 @@ def packetInternetGrouper(target, timeout, count, ttl):
                 responses.append(duration)
 
                 if reply:
-                    console.print(f"[bold green][+][/bold green] Response received from {addr[0]} - {duration:.2f}ms")
+                    progress.console.print(f"[bold green][+][/bold green] Response received from {addr[0]} - {duration:.2f}ms")
                     received += 1
             except socket.timeout:
-                console.print("[bold yellow][~][/bold yellow] Request timed out.")        
+                progress.console.print("[bold yellow][~][/bold yellow] Request timed out.")        
                 miss += 1
             finally:
                 sock.close()
@@ -110,10 +110,20 @@ def packetInternetGrouper(target, timeout, count, ttl):
     stop = False
     responses = []
 
-    try:
-        ping()
-    except KeyboardInterrupt:
-        stop = True
+    process_time = time.perf_counter()
+
+    with Progress(
+        SpinnerColumn(spinner_name="line", style="white"),
+        TextColumn("[progress.description]{task.description}"),
+        transient=True,
+        console=console
+    ) as progress:
+        progress.add_task(f"Performing ping...")
+
+        try:
+            ping()
+        except KeyboardInterrupt:
+            stop = True
 
     # Longest, shortest and average response time.
     avg = 0; rmin = float("inf"); rmax = float("-inf")
@@ -122,14 +132,27 @@ def packetInternetGrouper(target, timeout, count, ttl):
         if x < rmin: rmin = x
         if x > rmax: rmax = x
     
+    if stop:
+        console.print(f"[bold yellow][~][/bold yellow] Ping interrupted! Time elapsed: {(time.perf_counter() - process_time):.2f}s")
+    else:
+        console.print(f"[bold green][+][/bold green] Ping completed! Time elapsed: {(time.perf_counter() - process_time):.2f}s")
+
+    console.print("\n[bold]--- Ping Statistics ---[/bold]")
+    console.print(f"  [bold]└─ Sent:[/] {count}")
+    console.print(f"  [bold]└─ Received:[/] {received}")
+    console.print(f"  [bold]└─ Missed:[/] {miss}")
+    console.print(f"  [bold]└─ Packet Loss:[/] {((miss / count) * 100):.2f}%")
+
+    
+
     if received:
         avg = avg / received
-        
-        console.print(f"\nReceived: {received}")
-        console.print(f"Missed: {miss}")
-        console.print(f"\nAverage: {avg:.2f}ms - Min: {rmin:.2f}ms - Max: {rmax:.2f}ms")
+        console.print("\n[bold]--- Response Statistics (ms) ---[/bold]")
+        console.print(f"  [bold]└─ Min:[/] {rmin:.2f}ms")
+        console.print(f"  [bold]└─ Max:[/] {rmax:.2f}ms")
+        console.print(f"  [bold]└─ Average:[/] {avg:.2f}ms")
     else:
-        console.print(f"[bold red][!][/bold red] No replies received.")
+        console.print(f"\n[bold red][!][/bold red] No replies received.")
 
 
 
