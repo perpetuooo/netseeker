@@ -127,6 +127,75 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
             
             except Exception as e:
                 progress.console.print(f"[bold red][!][/bold red] TCP SYN SCAN ERROR: {str(e)}")
+        
+        def tcp_ack_scan():
+            nonlocal host_responded
+
+            try:
+                open_ports = []
+                for port in [80, 443, 22]:
+                    ack_pkt = IP(dst=str(host))/TCP(dport=port, flags="A")
+                    response = None
+
+                    if retries == 0:
+                        response = sr1(ack_pkt, timeout=timeout, verbose=0)
+                    else:
+                        for _ in range(retries):
+                            response = sr1(ack_pkt, timeout=timeout, verbose=0)
+                            if response:
+                                break
+                    
+                    # Check for RST.
+                    if response and response.haslayer(TCP) and response[TCP].flags & 0x04:  # Port is unfiltered by a firewall.
+                        open_ports.append(str(port))  
+                        host_responded = True
+                
+                if open_ports:
+                    if host_data['hostname'] == "NOT FOUND": host_data['hostname'] = info.get_hostname(host)
+                    host_data['scans'].append(f"TCP ACK ({','.join(open_ports)})")
+
+            except KeyboardInterrupt:
+                stop.set()
+                return
+            except Exception as e:
+                progress.console.print(f"[bold red][!][/bold red] TCP ACK SCAN ERROR: {str(e)}")
+
+        def udp_scan():
+            nonlocal host_responded
+
+            try:
+                open_ports = []
+                for port in [80, 443, 22]:
+                    udp_pkt = IP(dst=str(host))/UDP(dport=port)
+                    response = None
+
+                    if retries == 0:
+                        response = sr1(udp_pkt, timeout=timeout, verbose=0)
+                    else:
+                        for _ in range(retries):
+                            response = sr1(udp_pkt, timeout=timeout, verbose=0)
+                            if response:
+                                break
+                    
+                    # Check for ICMP Port Unreachable.
+                    # if response and response.haslayer(ICMP):
+                    #     if response[ICMP].type == 3 and response[ICMP].code == 3:
+                    #         pass
+                    
+                    # If no response the port is likely open.
+                    if not response:
+                        open_ports.append(str(port))
+                        host_responded = True
+
+                if open_ports:
+                    if host_data['hostname'] == "NOT FOUND": host_data['hostname'] = info.get_hostname(host)
+                    host_data['scans'].append(f"UDP ({','.join(open_ports)})")
+            except KeyboardInterrupt:
+                stop.set()
+                return
+            except Exception as e:
+                progress.console.print(f"[bold red][!][/bold red] UDP SCAN ERROR: {str(e)}")
+
 
 
         try:
