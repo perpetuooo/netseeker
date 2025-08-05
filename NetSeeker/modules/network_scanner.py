@@ -4,7 +4,7 @@ import random
 import logging
 
 from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
-from scapy.all import ARP, Ether, IP, srp, RandMAC, ICMP, sr1, TCP
+from scapy.all import ARP, Ether, IP, srp, RandMAC, ICMP, sr1, TCP, UDP
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from ipaddress import IPv4Network
 from threading import Event, Lock
@@ -25,7 +25,11 @@ TODO:
 - Add a verbose option?
 """
 
-def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, force_scan, verbose):
+# Force Scapy to refresh routing and suppress warnings.
+conf.route.resync()
+logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
+
+def networkScanner(target, retries, timeout, threads, stealth, icmp, arp, tcp_syn, tcp_ack, udp, force_scan, ports, verbose):
     
     def scanner(host):
 
@@ -62,15 +66,15 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
             nonlocal host_responded
 
             try:
-                icmp_echo = IP(dst=str(host))/ICMP()
+                icmp_pkt = IP(dst=str(host))/ICMP()
                 response = None
 
                 if retries == 0:
-                    response = sr1(icmp_echo, timeout=timeout, verbose=0)
+                    response = sr1(icmp_pkt, timeout=timeout, verbose=0)
 
                 else:   
                     for _ in range(retries):
-                        response = sr1(icmp_echo, timeout=timeout, verbose=0)
+                        response = sr1(icmp_pkt, timeout=timeout, verbose=0)
                         if response: break
 
                 if response and response.haslayer(ICMP) and response[ICMP].type == 0:   # Echo reply.
@@ -92,7 +96,7 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
                 if stealth: time.sleep(random.uniform(0.1, 0.5))
 
                 open_ports = []
-                for port in [80, 443, 22]:
+                for port in ports:
                     if stop.is_set(): return
 
                     syn_pkt = IP(dst=str(host))/TCP(dport=port, flags="S")
@@ -119,7 +123,7 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
                 
                 if open_ports:
                     if not stealth and host_data['hostname'] == "NOT FOUND": host_data['hostname'] = info.get_hostname(host)
-                    host_data['scans'].append(f"TCP-SYN({','.join(open_ports)})")
+                    host_data['scans'].append(f"TCP SYN ({','.join(open_ports)})")
                 
             except KeyboardInterrupt:
                 stop.set()
@@ -133,7 +137,7 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
 
             try:
                 open_ports = []
-                for port in [80, 443, 22]:
+                for port in ports:
                     ack_pkt = IP(dst=str(host))/TCP(dport=port, flags="A")
                     response = None
 
@@ -165,7 +169,7 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
 
             try:
                 open_ports = []
-                for port in [80, 443, 22]:
+                for port in ports:
                     udp_pkt = IP(dst=str(host))/UDP(dport=port)
                     response = None
 
@@ -213,16 +217,24 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
             }
 
             # ARP for local networks.
-            if not stealth and local_network:
+            if default_scans or arp and local_network and not stealth:
                 arp_scan()
             
-            # ICMP for local/remote networks if stealth scan is disabled.
-            if not stealth and (not host_responded or force_scan):
+            # ICMP.
+            if default_scans or icmp and not stealth and (not host_responded or force_scan):
                 icmp_scan()
 
-            # TCP SYN scan for stealth mode, remote networks or local networks if local_tcp_syn is enabled.
-            if (stealth or not local_network or (local_network and local_tcp_syn)) and (not host_responded or force_scan):
+            # TCP SYN for normal and stealth mode.
+            if default_scans or tcp_syn or stealth and (not host_responded or force_scan):
                 tcp_syn_scan()
+
+            # TCP ACK.
+            if tcp_ack and not stealth and (not host_responded or force_scan):
+                tcp_ack_scan()
+
+            #UDP.
+            if udp and not stealth and (not host_responded or force_scan):
+                udp_scan()
 
             # Append results.
             if host_responded:
@@ -244,27 +256,38 @@ def networkScanner(target, retries, timeout, threads, stealth, local_tcp_syn, fo
     table = Table("HOSTNAME", "IP", "MAC", ("SCANS" if force_scan else "SCAN"), box=box.MARKDOWN)
     stop = Event()
     progress_lock = Lock()
-
-    # Force Scapy to refresh routing and suppress warnings.
-    conf.route.resync()
-    logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
-
-    current_network = info.get_network()
+    
 
     # Validate and process the target input.
+    current_network = info.get_network()
     if target in ("Connected Network", current_network):
         target = current_network # Use the current connected network if no target is specified.
         local_network = True
     
+    # ARP scan only for local networks.
+    if not local_network and arp:
+        progress.console.print(f"[bold red][!][/bold red] Invalid network for ARP scan: {target}")
+        sys.exit(1)
+    
+    # Use default parameters if neither scan was specified.
+    default_scans = True if not (arp or icmp or tcp_syn or tcp_ack or udp) else False  
+
+    # Parse ports if is needed in the scanner.
+    if default_scans or tcp_syn or tcp_ack or udp:
+        if not (parsed_ports := info.parse_ports(ports)) or len(parsed_ports) > 5:
+            console.print(f"[bold red][!][/bold red] Invalid port range specified: {ports}")
+            sys.exit(1)
+
+    # Validate network range.
     try:
         network = IPv4Network(target)
     except ValueError:
-        console.print(f"[bold red][!][/bold red] Invalid target specified: {target}")
+        console.print(f"[bold red][!][/bold red] Invalid network specified: {target}")
         sys.exit(1)
     
     # Create a list of all hosts in the network.
     hosts = [str(ip) for ip in network.hosts()]
-    process_time = time.perf_counter()
+    process_time = time.perf_counter() 
 
     try:
         with Progress(

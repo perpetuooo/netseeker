@@ -36,7 +36,11 @@ def app_network_scanner(args):
         timeout=args.timeout,
         threads=args.threads,
         stealth=args.stealth,
-        local_tcp_syn=args.tcp_syn,
+        icmp=args.icmp,
+        arp=args.arp,
+        tcp_syn=args.tcp_syn,
+        tcp_ack=args.tcp_ack,
+        udp=args.udp,
         force_scan=args.force,
         verbose=args.verbose,
     )
@@ -92,10 +96,13 @@ def main():
     nscan.add_argument("target", nargs='?', help="Target IP range.", default="Connected Network")
     nscan.add_argument("--retries", "-r", type=int, help="Max. retries per host.", default=0)
     nscan.add_argument("--timeout", "-t", type=int, help="Timeout for waiting a reply (seconds).", default=1)
-    nscan.add_argument("--udp", "-sU", action="store_true", help="Enable UDP scan.")
+    nscan.add_argument("--arp", "-sA", action="store_true", help="Enable ARP scan.")
+    nscan.add_argument("--icmp", "-sI", action="store_true", help="Enable ICMP scan.")
+    nscan.add_argument("--tcp-syn", "-sTS", action="store_true", help="Enable TCP SYN scan.")
     nscan.add_argument("--tcp-ack", "-sTA", action="store_true", help="Enable TCP ACK scan.")
-    nscan.add_argument("--tcp-syn", "-sTS", action="store_true", help="Enable TCP SYN scan for local networks.")
-    nscan.add_argument("--force", "-f", action="store_true", help="Force all scans even if host was already found.")
+    nscan.add_argument("--udp", "-sU", action="store_true", help="Enable UDP scan.")
+    nscan.add_argument("--force", "-f", action="store_true", help="Force all enabled scans even if host was already found.")
+    nscan.add_argument("--ports", "-p", help="Ports to scan on TCP SYN, TCP ACK and UDP scans (e.g.: '20', '1-1024', '22,80,443'). Max 5 ports.", default='22,80,443')
     nscan.add_argument("--stealth", "-sS", action="store_true", help="Stealth scan (TCP SYN, random MAC, random timings, reduced ports. Overrides other scan types).")
     nscan.add_argument("--verbose", "-v", action="store_true", help="Verbose output.")
     nscan.add_argument("--threads", "-T", type=int, help="Max. ammount of threads for the scanner process.", default=80)

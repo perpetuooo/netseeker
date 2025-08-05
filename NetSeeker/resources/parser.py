@@ -114,16 +114,16 @@ class NetSeekerArgumentParser(argparse.ArgumentParser):
         match command:
             case "ping":
                 console.print("Usage: netseeker ping [TARGET] [OPTIONS]")
-                console.print("")
-                console.print("")
+                console.print("Tests responsiveness of a target device using ICMP packets.")
+                console.print("Example: netseeker ping test.com --time-to-live 128 --count 15")
             case "portscan":
                 console.print("Usage: netseeker portscan [TARGET] [OPTIONS]")
                 console.print("Scans a target IP address or domain for open TCP and/or UDP ports.")
                 console.print("Example: netseeker portscan 192.168.1.100 --ports 25,53,8080 --timeout 3")
             case "netscan":
                 console.print("Usage: netseeker netscan [TARGET] [OPTIONS]")
-                console.print("Discover hosts on a network (ARP + ICMP for local networks and ICMP + TCP SYN for remote).")
-                console.print("Example: netseeker netscan 192.168.1.0/24 --tcp-syn --verbose")
+                console.print("Discover hosts on a network (Default scans: ARP + ICMP for local networks and ICMP + TCP SYN for remote).")
+                console.print("Example: netseeker netscan 192.168.1.0/24 --tcp-syn --icmp --force --verbose")
             case "traceroute":
                 console.print("Usage: netseeker traceroute [TARGET] [OPTIONS]")
                 console.print("Traces the network path that IP packets take to reach a target host.")
@@ -136,7 +136,7 @@ class NetSeekerArgumentParser(argparse.ArgumentParser):
                 arguments_panel.title = "Commands"
                 arguments_table.add_column()
                 options_table.add_row(f"--help / -h    ", "", "    Show this help message and exit.")
-                arguments_table.add_row("ping            ", "Checks target availability with ICMP packets.")
+                arguments_table.add_row("ping            ", "Checks responsiveness of a device with ICMP packets.")
                 arguments_table.add_row("portscan            ", "Scans target for open TCP/UDP ports.")
                 arguments_table.add_row("netscan            ", "Discover hosts on a network.")
                 arguments_table.add_row("traceroute            ", "Trace the network path to a target.")
