@@ -165,7 +165,10 @@ def portScanner(target, ports, timeout, udp, threads, bg, verbose):
         console.print(f"[bold red][!][/bold red] Host [yellow]{target}[/yellow] is down, exiting...")
         sys.exit(1)
 
-    parsed_ports = parse_ports(ports)
+    if not (parsed_ports := info.parse_ports(ports)):
+        console.print(f"[bold red][!][/bold red] Invalid port range specified: {ports}")
+        sys.exit(1)
+
     process_time = time.perf_counter()
 
     try:

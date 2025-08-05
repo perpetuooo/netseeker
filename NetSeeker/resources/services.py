@@ -79,6 +79,32 @@ class DevicesInfo:
             return 'NOT FOUND'
 
 
+    # Parse argument ports and return a list.
+    def parse_ports(self, ports):
+        parsed_ports = set()  # Using set to dismiss duplicate ports.
+
+        if ports == 'all': ports = '1-65535'
+
+        for part in ports.split(","):
+            part = part.strip()
+
+            try:
+                if "-" in part: # Handle port ranges (e.g., "1-1024").
+                    start, end = map(int, part.split("-"))
+
+                    if end > 65535: end = 65535    #Max ports.
+
+                    parsed_ports.update(range(start, end + 1))
+                # Handle single ports.
+                else:
+                    parsed_ports.add(int(part))
+
+            except ValueError:
+                return None
+
+        return sorted(parsed_ports)
+
+
     # Checks if the given IP address is a valid public IPv4 address.
     def check_ip(self, ip):
         try:
@@ -100,7 +126,7 @@ class DevicesInfo:
         base_path = None
 
         if location not in ["desktop", "documents"]:
-            raise ValueError(f"[bold red]ERROR:[/bold red] Invalid location to get path.")
+            raise ValueError(f"[bold red]ERROR:[/bold red] Invalid location to get path: {location}")
 
         if system == "Windows":
             try:
@@ -143,6 +169,16 @@ class DevicesInfo:
 
         return base_path
 
+
+    #
+    def check_privileges(self):
+        system = platform.system()
+        if system == "Windows":
+            pass
+        elif system == "Linux":
+            pass
+        elif system == "Darwin":   #macOS
+            pass
 
     logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 
