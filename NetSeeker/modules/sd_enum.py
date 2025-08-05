@@ -269,26 +269,38 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
     except KeyboardInterrupt:
         stop.set()
             
-    # Save results in a .txt file
+    # Save results in a .txt file.
     if output and found_sd:
         try:
-            filepath = os.path.join(info.get_path("Documents", "NetSeeker"), f"sdenum-{target}-{time.strftime('%d%m%Y%H%M%S', time.localtime())}.txt")
+            # Check for existing files.
+            base_filename = f"sdenum-{str(target).replace('/', '.')}"
+            counter = 0
+
+            while True:
+                suffix = f"-{counter}" if counter > 0 else ""
+                filename = f"{base_filename}-{time.strftime('%d_%m_%Y')}{suffix}.txt"
+                filepath = os.path.join(info.get_path("Documents", "NetSeeker"), filename)
+
+                if not os.path.exists(filepath):
+                    break
+                counter += 1
 
             with open(filepath, 'w', encoding='utf-8') as f:
                 current_subdomain = None
+                f.write(f"Subdomain enumerator results for {target} - {time.strftime('%H:%M:%S %d/%m/%Y')}\n\n")
 
                 for line in found_sd:
-                    # Remove Rich tags and ANSI codes
+                    # Remove Rich tags and ANSI codes.
                     cleaned = re.sub(r'\[/?(?:bold|green|yellow|red|magenta|/?)\]', '', line)
                     cleaned = re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', cleaned)
 
-                    # Match cleaned subdomain line
+                    # Match cleaned subdomain line.
                     match = re.search(r'Found subdomain:\s*(.+)', cleaned)
                     if match:
                         current_subdomain = match.group(1).strip()
                         f.write(f"{current_subdomain}\n")
                     elif current_subdomain:
-                        # Clean HTTP/HTTPS result line
+                        # Clean HTTP/HTTPS result line.
                         cleaned_line = re.sub(r'\s*└─\s*', '', cleaned).strip()
                         if cleaned_line:
                             f.write(f"   - {cleaned_line}\n")

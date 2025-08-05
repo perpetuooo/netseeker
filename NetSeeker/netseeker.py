@@ -26,6 +26,7 @@ def app_port_scanner(args):
         udp=args.udp,
         threads=args.threads,
         bg=args.banner,
+        output=args.output,
         verbose=args.verbose,
     )
 
@@ -42,6 +43,8 @@ def app_network_scanner(args):
         tcp_ack=args.tcp_ack,
         udp=args.udp,
         force_scan=args.force,
+        ports=args.ports,
+        output=args.output,
         verbose=args.verbose,
     )
 
@@ -87,6 +90,7 @@ def main():
     pscan.add_argument("--udp", "-sU", action="store_true", help="Enable UDP scan.")
     pscan.add_argument("--banner", "-b", action="store_true", help="Enable banner grabbing.")
     pscan.add_argument("--verbose", "-v", action="store_true", help="Verbose output.")
+    pscan.add_argument("--output", "-o", action="store_true", help="Save results in a text file.", default=False)
     pscan.add_argument("--threads", "-T", type=int, help="Max. ammount of threads for the scanner process.", default=80)
     pscan.add_argument("--help", "-h", action="store_true", help="Show this help message and exit.")
     pscan.set_defaults(func=app_port_scanner)
@@ -104,6 +108,7 @@ def main():
     nscan.add_argument("--force", "-f", action="store_true", help="Force all enabled scans even if host was already found.")
     nscan.add_argument("--ports", "-p", help="Ports to scan on TCP SYN, TCP ACK and UDP scans (e.g.: '20', '1-1024', '22,80,443'). Max 5 ports.", default='22,80,443')
     nscan.add_argument("--stealth", "-sS", action="store_true", help="Stealth scan (TCP SYN, random MAC, random timings, reduced ports. Overrides other scan types).")
+    nscan.add_argument("--output", "-o", action="store_true", help="Save results in a text file.", default=False)
     nscan.add_argument("--verbose", "-v", action="store_true", help="Verbose output.")
     nscan.add_argument("--threads", "-T", type=int, help="Max. ammount of threads for the scanner process.", default=80)
     nscan.add_argument("--help", "-h", action="store_true", help="Show this help message and exit.")

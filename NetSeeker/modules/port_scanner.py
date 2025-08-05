@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 import socket
@@ -18,7 +19,7 @@ TODO:
 - Create a stealth scan alternative
 """
 
-def portScanner(target, ports, timeout, udp, threads, bg, verbose):
+def portScanner(target, ports, timeout, udp, threads, bg, output, verbose):
 
     def scanner(port):
 
@@ -35,7 +36,7 @@ def portScanner(target, ports, timeout, udp, threads, bg, verbose):
 
         # Update the progress description to show the current port.
         with progress_lock:
-            progress.update(task_id, description=f"Scanning port {port}")
+            progress.update(task_id, description=f"Scanning port [yellow]{port}[/yellow]")
 
         # UDP scanner.
         if udp:
@@ -52,6 +53,7 @@ def portScanner(target, ports, timeout, udp, threads, bg, verbose):
                     if verbose: progress.console.print( f"[bold green][+][/bold green] Port [green]{port}[/green] is [bold]OPEN|FILTERED[/bold].")
                     if bg: banner_grabbing()
                     table.add_row(str(port) + "/udp", "OPEN|FILTERED", (port_service or "NOT FOUND"))
+                    results.append((str(port) + "/udp", "OPEN|FILTERED", (port_service or "NOT FOUND")))
 
                 # No response within timeout could also mean it might be open/filtered.
                 except socket.timeout:
@@ -59,6 +61,7 @@ def portScanner(target, ports, timeout, udp, threads, bg, verbose):
                     if verbose: progress.console.print( f"[bold green][+][/bold green] Port [green]{port}[/green] is [bold]OPEN|FILTERED[/bold].")
                     if bg: banner_grabbing()
                     table.add_row(str(port) + "/udp", "OPEN|FILTERED", (port_service or "NOT FOUND"))
+                    results.append((str(port) + "/udp", "OPEN|FILTERED", (port_service or "NOT FOUND")))
 
                 except socket.error as e:
                     if e.errno == 10054 or e.errno == 149:  # ICMP Port Unreachable (Windows/Linux)
@@ -93,6 +96,7 @@ def portScanner(target, ports, timeout, udp, threads, bg, verbose):
                     port_service = socket.getservbyport(port)
                     if verbose: progress.console.print( f"[bold green][+][/bold green] Port [green]{port}[/green] is [bold]OPEN[/bold].")
                     table.add_row(str(port), "OPEN", (port_service or "NOT FOUND"))
+                    results.append((str(port), "OPEN", (port_service or "NOT FOUND")))
 
                     if bg: banner_grabbing()
                     
@@ -113,33 +117,6 @@ def portScanner(target, ports, timeout, udp, threads, bg, verbose):
             finally:
                 sock.close()
                 progress.update(task_id, advance=1)
-        
-    # Parse ports for the scanner process.
-    def parse_ports(ports):
-        parsed_ports = set()  # Using set to dismiss duplicate ports.
-
-        if ports == 'all': ports = '1-65535'
-
-        for part in ports.split(","):
-            part = part.strip()
-
-            try:
-                if "-" in part: # Handle port ranges (e.g., "1-1024").
-                    start, end = map(int, part.split("-"))
-
-                    if end > 65535: end = 65535    #Max ports.
-
-                    parsed_ports.update(range(start, end + 1))
-                # Handle single ports.
-                else:
-                    parsed_ports.add(int(part))
-
-            except ValueError:
-                console.print(f"[bold red][!][/bold red] Invalid port range specified: {part}")
-                sys.exit(1)
-
-        return sorted(parsed_ports)
-
 
     def display_banners(banners):
         for port, banner in banners.items():
@@ -156,6 +133,7 @@ def portScanner(target, ports, timeout, udp, threads, bg, verbose):
     stop = Event()
     progress_lock = Lock()
     banners = {}
+    results = []
 
     # Check if the target is reachable by sending him a ICMP echo request.
     if target == '127.0.0.1' or info.ping(target):
@@ -202,13 +180,56 @@ def portScanner(target, ports, timeout, udp, threads, bg, verbose):
     except KeyboardInterrupt:
         stop.set()
 
-    if verbose: console.print() # New line.
+    if verbose: console.print()
+
+    # Save results in a .txt file.
+    if output and table.row_count > 0:
+        try:
+            # Check for existing files.
+            base_filename = f"portscan-{str(target).replace('/', '.')}"
+            counter = 0
+
+            while True:
+                suffix = f"-{counter}" if counter > 0 else ""
+                filename = f"{base_filename}-{time.strftime('%d_%m_%Y')}{suffix}.txt"
+                filepath = os.path.join(info.get_path("Documents", "NetSeeker"), filename)
+
+                if not os.path.exists(filepath):
+                    break
+                counter += 1
+
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(f"Port scanner results for {target} - {time.strftime('%H:%M:%S %d/%m/%Y')}\n\n")
+
+                # Write the table data.
+                f.write("PORT        STATE       SERVICE\n")
+                f.write("-------------------------------------\n")
+
+                for port, state, service in results:
+                    f.write(f"{port:<10}  {state:<10}  {service:<10}\n")
+                
+                # Write the banner grabbing results if any.
+                if banners:
+                    f.write("\n\n--- BANNERS FOUND ---\n")
+                    for port, banner in banners.items():
+                        f.write(f"\n- Port {port}:\n")
+                        f.write(f"  {banner}\n")
+
+            output_success = True
+        except Exception as e:
+            output_success = False
+            console.print(f"[bold red][!][/bold red] Failed to write file: {e}")
 
     if stop.is_set():
         console.print(f"[bold yellow][~][/bold yellow] Scan interrupted! Time elapsed: {int(time.perf_counter() - process_time)}s")
 
     else:
         console.print(f"[bold green][+][/bold green] Scan completed! Time elapsed: {int(time.perf_counter() - process_time)}s")
+
+    if output and output_success:
+        console.print(f"[bold green][+][/bold green] Results saved to: {filepath}")
+    elif output and not output_success:
+        console.print(f"[bold red][!][/bold red] Could not write to file {filepath}")
 
     if table.row_count == 0:
         console.print(f"[bold red][!][/bold red] No open ports on [bold]{target}[/bold]")

@@ -1,5 +1,7 @@
-import time
+import os
+import re
 import sys
+import time
 import random
 import logging
 
@@ -19,17 +21,15 @@ from resources import services
 """
 TODO: 
 - Add support to IPv6
-- UDP and TCP ACK scans
 - OS fingerprinting
 - Detect devices types based on their MACs (OUI)
-- Add a verbose option?
 """
 
 # Force Scapy to refresh routing and suppress warnings.
 conf.route.resync()
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 
-def networkScanner(target, retries, timeout, threads, stealth, icmp, arp, tcp_syn, tcp_ack, udp, force_scan, ports, verbose):
+def networkScanner(target, retries, timeout, threads, stealth, icmp, arp, tcp_syn, tcp_ack, udp, force_scan, ports, output, verbose):
     
     def scanner(host):
 
@@ -96,7 +96,7 @@ def networkScanner(target, retries, timeout, threads, stealth, icmp, arp, tcp_sy
                 if stealth: time.sleep(random.uniform(0.1, 0.5))
 
                 open_ports = []
-                for port in ports:
+                for port in parsed_ports:
                     if stop.is_set(): return
 
                     syn_pkt = IP(dst=str(host))/TCP(dport=port, flags="S")
@@ -137,7 +137,7 @@ def networkScanner(target, retries, timeout, threads, stealth, icmp, arp, tcp_sy
 
             try:
                 open_ports = []
-                for port in ports:
+                for port in parsed_ports:
                     ack_pkt = IP(dst=str(host))/TCP(dport=port, flags="A")
                     response = None
 
@@ -169,7 +169,7 @@ def networkScanner(target, retries, timeout, threads, stealth, icmp, arp, tcp_sy
 
             try:
                 open_ports = []
-                for port in ports:
+                for port in parsed_ports:
                     udp_pkt = IP(dst=str(host))/UDP(dport=port)
                     response = None
 
@@ -199,7 +199,6 @@ def networkScanner(target, retries, timeout, threads, stealth, icmp, arp, tcp_sy
                 return
             except Exception as e:
                 progress.console.print(f"[bold red][!][/bold red] UDP SCAN ERROR: {str(e)}")
-
 
 
         try:
@@ -319,6 +318,43 @@ def networkScanner(target, retries, timeout, threads, stealth, icmp, arp, tcp_sy
 
     except KeyboardInterrupt:
         stop.set()
+
+    # Save results in a .txt file.
+    if output and found_hosts:
+        try:
+            # Check for existing files.
+            base_filename = f"netscan-{str(target).replace('/', '.')}"
+            counter = 0
+
+            while True:
+                suffix = f"-{counter}" if counter > 0 else ""
+                filename = f"{base_filename}-{time.strftime('%d_%m_%Y')}{suffix}.txt"
+                filepath = os.path.join(info.get_path("Documents", "NetSeeker"), filename)
+
+                if not os.path.exists(filepath):
+                    break
+                counter += 1
+
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(f"Network scanner results for {target} - {time.strftime('%H:%M:%S %d/%m/%Y')}\n\n")
+
+                # Iterate through the found_hosts dictionary.
+                for ip_addr, data in found_hosts.items():
+                    hostname = data['hostname']
+                    mac_addr = data['mac']
+                    scans_list = ", ".join(data['scans'])
+
+                    f.write(f'{ip_addr}\n')
+                    f.write(f'   - HOSTNAME: {hostname}\n')
+                    f.write(f'   - MAC: {mac_addr}\n')
+                    f.write(f'   - SCANS: {scans_list}\n')
+                    f.write('\n')  
+
+            output_success = True
+        except Exception as e:
+            output_success = False
+            console.print(f"[bold red][!][/bold red] Failed to write file: {e}")
+
         
     if stop.is_set():
         console.print(f"[bold yellow][~][/bold yellow] Scan interrupted! Time elapsed: {int(time.perf_counter() - process_time)}s")
@@ -326,6 +362,10 @@ def networkScanner(target, retries, timeout, threads, stealth, icmp, arp, tcp_sy
     else:
         console.print(f"[bold green][+][/bold green] Scan completed! Time elapsed: {int(time.perf_counter() - process_time)}s")
 
+    if output and output_success:
+        console.print(f"[bold green][+][/bold green] Results saved to: {filepath}")
+    elif output and not output_success:
+        console.print(f"[bold red][!][/bold red] Could not write to file {filepath}")
 
     for ip_addr, data in found_hosts.items():
         table.add_row(data['hostname'], ip_addr, data['mac'], ", ".join(map(str, data.get('scans', []))))
@@ -334,6 +374,7 @@ def networkScanner(target, retries, timeout, threads, stealth, icmp, arp, tcp_sy
         console.print(f"[bold red][!][/bold red] No hosts found on [bold]{target}[/bold] network.")
 
     else:
+        console.print()
         console.print(f"[bold yellow]\\[i][/bold yellow] Found {table.row_count} hosts: ")
         console.print(table)
 
