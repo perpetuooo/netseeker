@@ -207,14 +207,14 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
         return output_text
 
 
-    info = services.DevicesInfo()
+    aux = services.NetworkUtils()
     stop = Event()
     progress_lock = Lock()
     subdomains = []
     found_sd = []
     sd_count = 0
 
-    if not info.check_domain(target):   
+    if not aux.check_domain(target):   
         console.print(f"[bold red][!][/bold red] Invalid domain: {target}")
         sys.exit(1)
 
@@ -279,7 +279,7 @@ def subdomainEnumeration(target, wordlist_path, timeout, rtypes, output, http_st
             while True:
                 suffix = f"-{counter}" if counter > 0 else ""
                 filename = f"{base_filename}-{time.strftime('%d_%m_%Y')}{suffix}.txt"
-                filepath = os.path.join(info.get_path("Documents", "NetSeeker"), filename)
+                filepath = os.path.join(aux.get_path("Documents", "NetSeeker"), filename)
 
                 if not os.path.exists(filepath):
                     break

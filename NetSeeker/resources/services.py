@@ -10,7 +10,7 @@ import subprocess
 import scapy.all as scapy
 from pathlib import Path
 
-class DevicesInfo:
+class NetworkUtils:
     # Sends an ICMP echo request to the target host and checks for a reply.
     def ping(self, target):
         packet = scapy.IP(dst=target) / scapy.ICMP()

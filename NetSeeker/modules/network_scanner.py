@@ -50,7 +50,7 @@ def networkScanner(target, retries, timeout, threads, stealth, icmp, arp, tcp_sy
 
                 if response:
                     for _, received in response:
-                        host_data['hostname'] = info.get_hostname(host)
+                        host_data['hostname'] = aux.get_hostname(host)
                         host_data['mac'] = received.hwsrc
                         host_data['scans'].append("ARP")
                         host_responded = True
@@ -78,7 +78,7 @@ def networkScanner(target, retries, timeout, threads, stealth, icmp, arp, tcp_sy
                         if response: break
 
                 if response and response.haslayer(ICMP) and response[ICMP].type == 0:   # Echo reply.
-                    host_data['hostname'] = info.get_hostname(host)
+                    host_data['hostname'] = aux.get_hostname(host)
                     host_data['scans'].append("ICMP")
                     host_responded = True
             
@@ -122,7 +122,7 @@ def networkScanner(target, retries, timeout, threads, stealth, icmp, arp, tcp_sy
                     if stealth: break   # Try only on port 80.
                 
                 if open_ports:
-                    if not stealth and host_data['hostname'] == "NOT FOUND": host_data['hostname'] = info.get_hostname(host)
+                    if not stealth and host_data['hostname'] == "NOT FOUND": host_data['hostname'] = aux.get_hostname(host)
                     host_data['scans'].append(f"TCP SYN ({','.join(open_ports)})")
                 
             except KeyboardInterrupt:
@@ -155,7 +155,7 @@ def networkScanner(target, retries, timeout, threads, stealth, icmp, arp, tcp_sy
                         host_responded = True
                 
                 if open_ports:
-                    if host_data['hostname'] == "NOT FOUND": host_data['hostname'] = info.get_hostname(host)
+                    if host_data['hostname'] == "NOT FOUND": host_data['hostname'] = aux.get_hostname(host)
                     host_data['scans'].append(f"TCP ACK ({','.join(open_ports)})")
 
             except KeyboardInterrupt:
@@ -192,7 +192,7 @@ def networkScanner(target, retries, timeout, threads, stealth, icmp, arp, tcp_sy
                         host_responded = True
 
                 if open_ports:
-                    if host_data['hostname'] == "NOT FOUND": host_data['hostname'] = info.get_hostname(host)
+                    if host_data['hostname'] == "NOT FOUND": host_data['hostname'] = aux.get_hostname(host)
                     host_data['scans'].append(f"UDP ({','.join(open_ports)})")
             except KeyboardInterrupt:
                 stop.set()
@@ -251,14 +251,14 @@ def networkScanner(target, retries, timeout, threads, stealth, icmp, arp, tcp_sy
 
 
     found_hosts = {}    # IP as key, hostname and MAC as values.
-    info = services.DevicesInfo()
+    aux = services.NetworkUtils()
     table = Table("HOSTNAME", "IP", "MAC", ("SCANS" if force_scan else "SCAN"), box=box.MARKDOWN)
     stop = Event()
     progress_lock = Lock()
     
 
     # Validate and process the target input.
-    current_network = info.get_network()
+    current_network = aux.get_network()
     if target in ("Connected Network", current_network):
         target = current_network # Use the current connected network if no target is specified.
         local_network = True
@@ -273,7 +273,7 @@ def networkScanner(target, retries, timeout, threads, stealth, icmp, arp, tcp_sy
 
     # Parse ports if is needed in the scanner.
     if default_scans or tcp_syn or tcp_ack or udp:
-        if not (parsed_ports := info.parse_ports(ports)) or len(parsed_ports) > 5:
+        if not (parsed_ports := aux.parse_ports(ports)) or len(parsed_ports) > 5:
             console.print(f"[bold red][!][/bold red] Invalid port range specified: {ports}")
             sys.exit(1)
 
@@ -329,7 +329,7 @@ def networkScanner(target, retries, timeout, threads, stealth, icmp, arp, tcp_sy
             while True:
                 suffix = f"-{counter}" if counter > 0 else ""
                 filename = f"{base_filename}-{time.strftime('%d_%m_%Y')}{suffix}.txt"
-                filepath = os.path.join(info.get_path("Documents", "NetSeeker"), filename)
+                filepath = os.path.join(aux.get_path("Documents", "NetSeeker"), filename)
 
                 if not os.path.exists(filepath):
                     break

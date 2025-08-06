@@ -128,7 +128,7 @@ def portScanner(target, ports, timeout, udp, threads, bg, output, verbose):
         ))
 
 
-    info = services.DevicesInfo()
+    aux = services.NetworkUtils()
     table = Table("PORT", "STATE", "SERVICE", box=box.MARKDOWN)
     stop = Event()
     progress_lock = Lock()
@@ -136,14 +136,14 @@ def portScanner(target, ports, timeout, udp, threads, bg, output, verbose):
     results = []
 
     # Check if the target is reachable by sending him a ICMP echo request.
-    if target == '127.0.0.1' or info.ping(target):
+    if target == '127.0.0.1' or aux.ping(target):
         console.print(f"[bold green][+][/bold green] Host [yellow]{target}[/yellow] is up!")
 
     else:
         console.print(f"[bold red][!][/bold red] Host [yellow]{target}[/yellow] is down, exiting...")
         sys.exit(1)
 
-    if not (parsed_ports := info.parse_ports(ports)):
+    if not (parsed_ports := aux.parse_ports(ports)):
         console.print(f"[bold red][!][/bold red] Invalid port range specified: {ports}")
         sys.exit(1)
 
@@ -192,7 +192,7 @@ def portScanner(target, ports, timeout, udp, threads, bg, output, verbose):
             while True:
                 suffix = f"-{counter}" if counter > 0 else ""
                 filename = f"{base_filename}-{time.strftime('%d_%m_%Y')}{suffix}.txt"
-                filepath = os.path.join(info.get_path("Documents", "NetSeeker"), filename)
+                filepath = os.path.join(aux.get_path("Documents", "NetSeeker"), filename)
 
                 if not os.path.exists(filepath):
                     break

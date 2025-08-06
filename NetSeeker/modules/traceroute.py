@@ -51,12 +51,12 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
                 if reply:
                     hop_info['ip'] = reply.src  # Router IP.
                     hop_info['rtt'].append(f"{round(rtt)}ms")
-                    hop_info['hostname'] = info.get_hostname(reply.src)
+                    hop_info['hostname'] = aux.get_hostname(reply.src)
 
                     # Results depends if there is an IP and if it is public.
                     if reply.src is not None and ip_address(reply.src).is_global:
                         hop_info['is_private'] = False
-                        hop_info['location'] = info.get_geolocation(reply.src)
+                        hop_info['location'] = aux.get_geolocation(reply.src)
                     else:
                         hop_info['is_private'] = True
                         hop_info['location'] = None
@@ -108,7 +108,7 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
         locations = []
 
         # Add your own location first (starting point).
-        host = info.get_geolocation()
+        host = aux.get_geolocation()
         if host and host['status'] == 'success':
             original_loc = [host['lat'], host['lon']]
             locations.append(original_loc)
@@ -117,7 +117,7 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
                 location=original_loc,
                 tooltip=folium.Tooltip(f"{host['query']} (you)"),
                 popup=folium.Popup(f"{host['city']}, {host['country']}", max_width=250),
-                icon=folium.Icon(color='green', icon='info-circle', prefix='fa')
+                icon=folium.Icon(color='green', icon='aux-circle', prefix='fa')
             ).add_to(m)
 
         # Process each hop in order.
@@ -179,7 +179,7 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
             if save_file:
                 progress.update(task_id, description="Saving file...")
 
-                filepath = os.path.join(info.get_path("Documents", "NetSeeker"), f"tracert-{target}-{time.strftime('%d%m%Y%H%M%S',time.localtime())}.html")
+                filepath = os.path.join(aux.get_path("Documents", "NetSeeker"), f"tracert-{target}-{time.strftime('%d%m%Y%H%M%S',time.localtime())}.html")
                 m.save(filepath)
                 webbrowser.open(f"file://{filepath}")
             else:
@@ -194,16 +194,16 @@ def tracerouteWithMap(target, timeout, max_hops, gen_map, save_file):
 
 
     target_name = target
-    info = services.DevicesInfo()
+    aux = services.NetworkUtils()
     stop = False
     results = {}
     
     # Resolve IP if the target is a domain.
-    if info.check_domain(target):
+    if aux.check_domain(target):
         target_name = f"{target} ({socket.gethostbyname(target)})"
 
     # If it is an IP, verify if its a valid public address.
-    elif not info.check_ip(target) or not ip_address(target).is_global:
+    elif not aux.check_ip(target) or not ip_address(target).is_global:
         console.print(f"[bold red][!][/bold red] Invalid target specified: {target}")
         sys.exit(1)
 
